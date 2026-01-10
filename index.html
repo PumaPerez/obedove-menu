@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Obedové Menu - Apollo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .emoji {
+            font-size: 3em;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            border-radius: 50px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-weight: 600;
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .button:active {
+            transform: translateY(0);
+        }
+
+        .button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: white;
+            font-size: 1.2em;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .menu-card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .menu-date {
+            font-size: 1.5em;
+            color: #667eea;
+            font-weight: 600;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #f0f0f0;
+        }
+
+        .menu-item {
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #667eea;
+            background: #f8f9ff;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .menu-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 3px 10px rgba(102, 126, 234, 0.2);
+        }
+
+        .dish-name {
+            flex: 1;
+            color: #333;
+            font-size: 1.1em;
+        }
+
+        .price {
+            color: #667eea;
+            font-weight: 700;
+            font-size: 1.2em;
+            margin-left: 15px;
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #c33;
+            margin: 20px 0;
+        }
+
+        .info-box {
+            background: #e8f4f8;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #3498db;
+            color: #2c3e50;
+            margin-top: 20px;
+        }
+
+        .no-menu {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 1.2em;
+        }
+
+        .updated-time {
+            text-align: center;
+            color: white;
+            margin-top: 10px;
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 2em;
+            }
+            
+            .menu-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .price {
+                margin-left: 0;
+                margin-top: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="emoji">🍽️</div>
+            <h1>Obedové Menu</h1>
+            <p class="subtitle">Apollo Reštaurácia</p>
+            <button class="button" onclick="fetchMenu()" id="fetchBtn">
+                Načítaj dnešné menu
+            </button>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Načítavam menu...</p>
+        </div>
+
+        <div id="menuContainer"></div>
+        
+        <div class="updated-time" id="updatedTime"></div>
+    </div>
+
+    <script>
+        async function fetchMenu() {
+            const loading = document.getElementById('loading');
+            const menuContainer = document.getElementById('menuContainer');
+            const fetchBtn = document.getElementById('fetchBtn');
+            const updatedTime = document.getElementById('updatedTime');
+            
+            loading.classList.add('active');
+            fetchBtn.disabled = true;
+            menuContainer.innerHTML = '';
+            
+            try {
+                // Fetch the Apollo menu page
+                const response = await fetch('https://www.lunch-break.sk/menu-apollo/');
+                
+                if (!response.ok) {
+                    throw new Error('Nepodarilo sa načítať stránku');
+                }
+                
+                const html = await response.text();
+                
+                // Parse HTML
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                
+                // Extract menu items
+                const menuItems = [];
+                
+                // Try to find all text elements that might contain menu
+                const allElements = doc.querySelectorAll('p, div, li, span, td');
+                
+                allElements.forEach(el => {
+                    const text = el.textContent.trim();
+                    // Look for items with prices or menu-like patterns
+                    if (text && text.length > 5 && text.length < 200) {
+                        if (text.includes('€') || text.match(/\d+[.,]\d+/) || 
+                            text.match(/polievka|hlavné|jedlo|dezert/i)) {
+                            menuItems.push(text);
+                        }
+                    }
+                });
+                
+                // Remove duplicates
+                const uniqueItems = [...new Set(menuItems)];
+                
+                // Display menu
+                if (uniqueItems.length === 0) {
+                    menuContainer.innerHTML = `
+                        <div class="menu-card">
+                            <div class="no-menu">
+                                😕 Menu zatiaľ nie je dostupné.<br><br>
+                                Reštaurácia môže mať menu zverejnené len v deň, keď je otvorená.
+                            </div>
+                            <div class="info-box">
+                                <strong>💡 Tip:</strong> Skús to neskôr alebo v pracovný deň ráno.
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    let menuHTML = '<div class="menu-card">';
+                    menuHTML += '<div class="menu-date">📅 Dnešné menu</div>';
+                    
+                    uniqueItems.forEach(item => {
+                        const priceMatch = item.match(/(\d+[.,]\d+)\s*€?/);
+                        let dishName = item;
+                        let price = '';
+                        
+                        if (priceMatch) {
+                            price = priceMatch[1].replace(',', '.') + ' €';
+                            dishName = item.substring(0, priceMatch.index).trim();
+                        }
+                        
+                        if (dishName) {
+                            menuHTML += `
+                                <div class="menu-item">
+                                    <div class="dish-name">${dishName}</div>
+                                    ${price ? `<div class="price">${price}</div>` : ''}
+                                </div>
+                            `;
+                        }
+                    });
+                    
+                    menuHTML += '</div>';
+                    menuContainer.innerHTML = menuHTML;
+                }
+                
+                // Update time
+                const now = new Date();
+                updatedTime.textContent = `Posledná aktualizácia: ${now.toLocaleTimeString('sk-SK')}`;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                menuContainer.innerHTML = `
+                    <div class="menu-card">
+                        <div class="error">
+                            ⚠️ Nepodarilo sa načítať menu.<br><br>
+                            Možné príčiny:<br>
+                            • Reštaurácia nemá menu zverejnené<br>
+                            • Problém s internetovým pripojením<br>
+                            • Stránka je nedostupná<br><br>
+                            Skús to prosím neskôr.
+                        </div>
+                    </div>
+                `;
+            } finally {
+                loading.classList.remove('active');
+                fetchBtn.disabled = false;
+            }
+        }
+        
+        // Auto-load menu on page load
+        window.addEventListener('load', fetchMenu);
+    </script>
+</body>
+</html>
