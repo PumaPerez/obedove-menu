@@ -241,7 +241,7 @@
         <div class="header">
             <div class="emoji">🍽️</div>
             <h1>Obedové Menu</h1>
-            <p class="subtitle">Apollo Reštaurácia & Foodgarden Pressburg</p>
+            <p class="subtitle">Lunch Break • Foodgarden Pressburg • Foodgarden Apollo</p>
             <button class="button" onclick="fetchAllMenus()" id="fetchBtn">
                 🔄 Načítaj všetky menu
             </button>
@@ -250,9 +250,9 @@
         <div class="restaurants-grid">
             <div class="restaurant-card">
                 <div class="restaurant-header">
-                    <div class="restaurant-name">🏛️ Apollo</div>
+                    <div class="restaurant-name">🍴 Lunch Break</div>
                 </div>
-                <div id="apollo-content">
+                <div id="lunchbreak-content">
                     <div class="loading-indicator">
                         <div class="spinner"></div>
                         <p>Načítavam...</p>
@@ -262,9 +262,21 @@
 
             <div class="restaurant-card">
                 <div class="restaurant-header">
-                    <div class="restaurant-name">🌿 Foodgarden</div>
+                    <div class="restaurant-name">🌿 Foodgarden Pressburg</div>
                 </div>
-                <div id="foodgarden-content">
+                <div id="foodgarden-pressburg-content">
+                    <div class="loading-indicator">
+                        <div class="spinner"></div>
+                        <p>Načítavam...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="restaurant-card">
+                <div class="restaurant-header">
+                    <div class="restaurant-name">🏛️ Foodgarden Apollo</div>
+                </div>
+                <div id="foodgarden-apollo-content">
                     <div class="loading-indicator">
                         <div class="spinner"></div>
                         <p>Načítavam...</p>
@@ -277,8 +289,8 @@
     </div>
 
     <script>
-        async function fetchApollo() {
-            const container = document.getElementById('apollo-content');
+        async function fetchLunchBreak() {
+            const container = document.getElementById('lunchbreak-content');
             
             try {
                 const response = await fetch('https://www.lunch-break.sk/menu-apollo/');
@@ -339,7 +351,7 @@
                 }
                 
             } catch (error) {
-                console.error('Error fetching Apollo:', error);
+                console.error('Error fetching Lunch Break:', error);
                 container.innerHTML = `
                     <div class="error">
                         ⚠️ Nepodarilo sa načítať menu
@@ -348,8 +360,8 @@
             }
         }
 
-        async function fetchFoodgarden() {
-            const container = document.getElementById('foodgarden-content');
+        async function fetchFoodgardenPressburg() {
+            const container = document.getElementById('foodgarden-pressburg-content');
             
             try {
                 const response = await fetch('https://pressburg.foodgarden.sk/denne-menu-foodgarden-pressburg/');
@@ -441,7 +453,109 @@
                 }
                 
             } catch (error) {
-                console.error('Error fetching Foodgarden:', error);
+                console.error('Error fetching Foodgarden Pressburg:', error);
+                container.innerHTML = `
+                    <div class="error">
+                        ⚠️ Nepodarilo sa načítať menu
+                    </div>
+                `;
+            }
+        }
+
+        async function fetchFoodgardenApollo() {
+            const container = document.getElementById('foodgarden-apollo-content');
+            
+            try {
+                const response = await fetch('https://apollo.foodgarden.sk/');
+                
+                if (!response.ok) {
+                    throw new Error('Nepodarilo sa načítať stránku');
+                }
+                
+                const html = await response.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                
+                // Look for menu sections
+                const menuSections = {};
+                const allElements = doc.querySelectorAll('p, div, li, h2, h3, h4, span, td, tr');
+                
+                let currentSection = 'Hlavné menu';
+                
+                allElements.forEach(el => {
+                    const text = el.textContent.trim();
+                    
+                    // Check if it's a section header
+                    if (text.match(/^(polievk|hlavné jedl|dezert|šalát|menu)/i) && text.length < 50) {
+                        currentSection = text;
+                        if (!menuSections[currentSection]) {
+                            menuSections[currentSection] = [];
+                        }
+                        return;
+                    }
+                    
+                    // Check if it's a menu item
+                    if (text && text.length > 10 && text.length < 300) {
+                        if (text.includes('€') || text.match(/\d+[.,]\d+/)) {
+                            if (!menuSections[currentSection]) {
+                                menuSections[currentSection] = [];
+                            }
+                            menuSections[currentSection].push(text);
+                        }
+                    }
+                });
+                
+                // Check if we found any menu
+                const totalItems = Object.values(menuSections).reduce((sum, items) => sum + items.length, 0);
+                
+                if (totalItems === 0) {
+                    container.innerHTML = `
+                        <div class="no-menu">
+                            😕 Menu nie je dostupné
+                        </div>
+                    `;
+                } else {
+                    let menuHTML = '<div class="menu-date">📅 Dnešné menu</div>';
+                    
+                    Object.entries(menuSections).forEach(([section, items]) => {
+                        if (items.length > 0) {
+                            menuHTML += `<div class="menu-section">`;
+                            if (section !== 'Hlavné menu') {
+                                menuHTML += `<div class="section-title">${section}</div>`;
+                            }
+                            
+                            // Remove duplicates
+                            const uniqueItems = [...new Set(items)];
+                            
+                            uniqueItems.forEach(item => {
+                                const priceMatch = item.match(/(\d+[.,]\d+)\s*€?/);
+                                let dishName = item;
+                                let price = '';
+                                
+                                if (priceMatch) {
+                                    price = priceMatch[1].replace(',', '.') + ' €';
+                                    dishName = item.substring(0, priceMatch.index).trim();
+                                }
+                                
+                                if (dishName) {
+                                    menuHTML += `
+                                        <div class="menu-item">
+                                            <div class="dish-name">${dishName}</div>
+                                            ${price ? `<div class="price">${price}</div>` : ''}
+                                        </div>
+                                    `;
+                                }
+                            });
+                            
+                            menuHTML += `</div>`;
+                        }
+                    });
+                    
+                    container.innerHTML = menuHTML;
+                }
+                
+            } catch (error) {
+                console.error('Error fetching Foodgarden Apollo:', error);
                 container.innerHTML = `
                     <div class="error">
                         ⚠️ Nepodarilo sa načítať menu
@@ -456,24 +570,31 @@
             
             fetchBtn.disabled = true;
             
-            // Show loading in both cards
-            document.getElementById('apollo-content').innerHTML = `
+            // Show loading in all cards
+            document.getElementById('lunchbreak-content').innerHTML = `
                 <div class="loading-indicator">
                     <div class="spinner"></div>
                     <p>Načítavam...</p>
                 </div>
             `;
-            document.getElementById('foodgarden-content').innerHTML = `
+            document.getElementById('foodgarden-pressburg-content').innerHTML = `
+                <div class="loading-indicator">
+                    <div class="spinner"></div>
+                    <p>Načítavam...</p>
+                </div>
+            `;
+            document.getElementById('foodgarden-apollo-content').innerHTML = `
                 <div class="loading-indicator">
                     <div class="spinner"></div>
                     <p>Načítavam...</p>
                 </div>
             `;
             
-            // Fetch both menus in parallel
+            // Fetch all menus in parallel
             await Promise.all([
-                fetchApollo(),
-                fetchFoodgarden()
+                fetchLunchBreak(),
+                fetchFoodgardenPressburg(),
+                fetchFoodgardenApollo()
             ]);
             
             fetchBtn.disabled = false;
