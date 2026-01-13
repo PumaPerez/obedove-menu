@@ -20,6 +20,7 @@
             overflow-x: hidden;
         }
 
+        /* Kreston arrow background */
         body::before {
             content: '';
             position: fixed;
@@ -50,6 +51,10 @@
             box-shadow: 0 8px 32px rgba(0,0,0,0.15);
             margin-bottom: 30px;
             text-align: center;
+        }
+
+        .logo-area {
+            margin-bottom: 20px;
         }
 
         .company-name {
@@ -95,6 +100,10 @@
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(0,51,102,0.4);
             background: linear-gradient(135deg, #004080 0%, #0055a0 100%);
+        }
+
+        .button:active {
+            transform: translateY(0);
         }
 
         .button:disabled {
@@ -181,6 +190,9 @@
             color: #003366;
             font-weight: 600;
             margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .menu-item {
@@ -189,19 +201,16 @@
             border-left: 4px solid #003366;
             background: linear-gradient(to right, #f8fafc 0%, #ffffff 100%);
             border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             transition: all 0.2s ease;
         }
 
         .menu-item:hover {
             transform: translateX(5px);
             box-shadow: 0 3px 12px rgba(0,51,102,0.15);
-        }
-
-        .dish-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 15px;
+            background: linear-gradient(to right, #e8f4f8 0%, #f8fafc 100%);
         }
 
         .dish-name {
@@ -211,33 +220,38 @@
             line-height: 1.5;
         }
 
-        .dish-details {
-            color: #666;
-            font-size: 0.85em;
-            margin-top: 4px;
-        }
-
         .price {
             color: #003366;
             font-weight: 700;
             font-size: 1.15em;
+            margin-left: 15px;
             white-space: nowrap;
         }
 
-        .error, .no-menu {
-            text-align: center;
-            padding: 20px;
-            color: #666;
-            font-size: 0.95em;
+        .error {
+            background: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #ffc107;
+            font-size: 0.9em;
         }
 
-        .section-title {
-            font-weight: 600;
-            color: #004080;
-            margin: 20px 0 10px 0;
-            font-size: 1.05em;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+        .cors-warning {
+            background: #e3f2fd;
+            color: #0d47a1;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #2196f3;
+            font-size: 0.9em;
+            margin-bottom: 15px;
+        }
+
+        .no-menu {
+            text-align: center;
+            padding: 30px;
+            color: #666;
+            font-size: 1em;
         }
 
         .updated-time {
@@ -247,6 +261,19 @@
             font-size: 0.9em;
             opacity: 0.7;
             font-weight: 500;
+        }
+
+        .menu-section {
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-weight: 600;
+            color: #004080;
+            margin-bottom: 10px;
+            font-size: 1.05em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .footer-branding {
@@ -269,12 +296,21 @@
             h1 {
                 font-size: 2em;
             }
-            .dish-row {
+            
+            .menu-item {
                 flex-direction: column;
+                align-items: flex-start;
             }
+            
+            .price {
+                margin-left: 0;
+                margin-top: 5px;
+            }
+
             .restaurant-name {
                 font-size: 1.3em;
             }
+
             body::before {
                 width: 400px;
                 height: 400px;
@@ -285,13 +321,20 @@
 <body>
     <div class="container">
         <div class="header">
-            <div class="company-name">KRESTON SLOVAKIA</div>
+            <div class="logo-area">
+                <div class="company-name">KRESTON SLOVAKIA</div>
+            </div>
             <div class="emoji">🍽️</div>
             <h1>Obedové Menu</h1>
             <p class="subtitle">Lunch Break • Foodgarden Pressburg • Foodgarden Apollo</p>
             <button class="button" onclick="fetchAllMenus()" id="fetchBtn">
                 🔄 Načítaj všetky menu
             </button>
+        </div>
+
+        <div class="cors-warning">
+            ℹ️ <strong>Poznámka:</strong> Stránka používa CORS proxy server na načítanie menu z externých stránok. 
+            Ak sa menu nenačíta, použite tlačidlá "Navštíviť stránku" pre zobrazenie priamo na stránkach reštaurácií.
         </div>
 
         <div class="restaurants-grid">
@@ -348,78 +391,106 @@
     </div>
 
     <script>
-        function getCurrentDayInSlovak() {
-            const days = ['Nedeľa', 'Pondelok', 'Utorok', 'Streda', 'Štvrtok', 'Piatok', 'Sobota'];
-            return days[new Date().getDay()];
-        }
-
-        async function fetchWithProxy(url) {
-            const proxy = 'https://api.allorigins.win/raw?url=';
-            const response = await fetch(proxy + encodeURIComponent(url));
-            if (!response.ok) throw new Error('Failed to fetch');
-            return await response.text();
+        // Use CORS proxy to bypass browser restrictions
+        async function fetchWithCORS(url) {
+            // Try multiple CORS proxies in case one is down
+            const proxies = [
+                'https://api.allorigins.win/raw?url=',
+                'https://corsproxy.io/?',
+            ];
+            
+            for (const proxy of proxies) {
+                try {
+                    const proxyUrl = proxy + encodeURIComponent(url);
+                    const response = await fetch(proxyUrl);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    return await response.text();
+                } catch (error) {
+                    console.error(`Failed with proxy ${proxy}:`, error);
+                    // Try next proxy
+                    continue;
+                }
+            }
+            
+            throw new Error('All CORS proxies failed');
         }
 
         async function fetchLunchBreak() {
             const container = document.getElementById('lunchbreak-content');
             
             try {
-                const html = await fetchWithProxy('https://www.lunch-break.sk/menu-apollo/');
+                const html = await fetchWithCORS('https://www.lunch-break.sk/menu-apollo/');
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(html, 'text/html');
                 
+                // Look for date
                 let menuDate = 'Dnešné menu';
                 const dateElement = doc.querySelector('h5');
                 if (dateElement) {
                     menuDate = dateElement.textContent.trim();
                 }
                 
-                const menuSections = [];
-                const allParagraphs = doc.querySelectorAll('p');
+                // Find menu items - structure based on actual HTML
+                const menuItems = [];
+                const menuSections = doc.querySelectorAll('p');
                 
-                allParagraphs.forEach(p => {
-                    const strongElements = p.querySelectorAll('strong');
-                    if (strongElements.length > 0) {
-                        strongElements.forEach(strong => {
-                            const text = strong.textContent.trim();
-                            if (text && text.length > 3) {
-                                menuSections.push(text);
+                menuSections.forEach(p => {
+                    const text = p.textContent.trim();
+                    // Look for menu items with format like "A," "B," "C," or prices
+                    if (text && (text.match(/^[A-D],/) || text.includes('€'))) {
+                        const lines = text.split('\n').filter(line => line.trim());
+                        lines.forEach(line => {
+                            if (line.trim() && line.length > 3) {
+                                menuItems.push(line.trim());
                             }
                         });
                     }
                 });
                 
-                let menuHTML = `<div class="menu-date">📅 ${menuDate}</div>`;
-                
-                if (menuSections.length === 0) {
-                    menuHTML += '<div class="no-menu">Menu bude dostupné v deň otvorenia reštaurácie.</div>';
+                if (menuItems.length === 0) {
+                    container.innerHTML = `
+                        <div class="no-menu">
+                            📅 ${menuDate}<br><br>
+                            Menu sa aktualizuje v deň otvorenia reštaurácie.<br>
+                            Použite tlačidlo "Navštíviť stránku" pre aktuálne informácie.
+                        </div>
+                    `;
                 } else {
-                    menuSections.forEach(item => {
+                    let menuHTML = `<div class="menu-date">📅 ${menuDate}</div>`;
+                    
+                    menuItems.forEach(item => {
                         const priceMatch = item.match(/(\d+[.,]\d+)\s*€/);
-                        const dishName = priceMatch ? item.substring(0, priceMatch.index).trim() : item;
-                        const price = priceMatch ? priceMatch[0] : '';
+                        let dishName = item;
+                        let price = '';
                         
-                        if (dishName && !dishName.match(/^[A-D],\s*$/)) {
+                        if (priceMatch) {
+                            price = priceMatch[0];
+                            dishName = item.substring(0, priceMatch.index).trim();
+                        }
+                        
+                        if (dishName) {
                             menuHTML += `
                                 <div class="menu-item">
-                                    <div class="dish-row">
-                                        <div class="dish-name">${dishName}</div>
-                                        ${price ? `<div class="price">${price}</div>` : ''}
-                                    </div>
+                                    <div class="dish-name">${dishName}</div>
+                                    ${price ? `<div class="price">${price}</div>` : ''}
                                 </div>
                             `;
                         }
                     });
+                    
+                    container.innerHTML = menuHTML;
                 }
                 
-                container.innerHTML = menuHTML;
-                
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Error fetching Lunch Break:', error);
                 container.innerHTML = `
                     <div class="error">
-                        Nepodarilo sa načítať menu.<br>
-                        Použite tlačidlo "Navštíviť stránku" vyššie.
+                        ⚠️ Nepodarilo sa načítať menu z dôvodu CORS obmedzení.<br><br>
+                        <strong>Riešenie:</strong> Kliknite na tlačidlo "Navštíviť stránku" vyššie.
                     </div>
                 `;
             }
@@ -429,74 +500,62 @@
             const container = document.getElementById('foodgarden-pressburg-content');
             
             try {
-                const html = await fetchWithProxy('https://pressburg.foodgarden.sk/denne-menu-foodgarden-pressburg/');
+                const html = await fetchWithCORS('https://pressburg.foodgarden.sk/denne-menu-foodgarden-pressburg/');
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(html, 'text/html');
                 
-                const currentDay = getCurrentDayInSlovak();
-                let menuHTML = `<div class="menu-date">📅 ${currentDay}</div>`;
+                const menuItems = [];
+                const allText = doc.body.textContent;
+                const lines = allText.split('\n');
                 
-                // Find today's section
-                const headings = doc.querySelectorAll('h2');
-                let todaySection = null;
-                
-                for (let h2 of headings) {
-                    if (h2.textContent.trim().toUpperCase() === currentDay.toUpperCase()) {
-                        todaySection = h2.parentElement;
-                        break;
-                    }
-                }
-                
-                if (!todaySection) {
-                    container.innerHTML = menuHTML + '<div class="no-menu">Menu pre dnešný deň nie je dostupné.</div>';
-                    return;
-                }
-                
-                const menuItems = todaySection.querySelectorAll('h3');
-                
-                if (menuItems.length === 0) {
-                    container.innerHTML = menuHTML + '<div class="no-menu">Menu pre dnešný deň nie je dostupné.</div>';
-                    return;
-                }
-                
-                menuItems.forEach(h3 => {
-                    const dishName = h3.textContent.trim();
-                    const nextElement = h3.nextElementSibling;
-                    let details = '';
-                    let price = '';
-                    
-                    if (nextElement && nextElement.classList.contains('dish-details')) {
-                        details = nextElement.textContent.trim();
-                    }
-                    
-                    const priceElement = h3.parentElement.querySelector('h5');
-                    if (priceElement) {
-                        price = priceElement.textContent.trim();
-                    }
-                    
-                    if (dishName && !dishName.includes('Alergény')) {
-                        menuHTML += `
-                            <div class="menu-item">
-                                <div class="dish-row">
-                                    <div>
-                                        <div class="dish-name">${dishName}</div>
-                                        ${details ? `<div class="dish-details">${details}</div>` : ''}
-                                    </div>
-                                    ${price ? `<div class="price">${price}</div>` : ''}
-                                </div>
-                            </div>
-                        `;
+                lines.forEach(line => {
+                    const text = line.trim();
+                    if (text.length > 10 && text.length < 300 && (text.includes('€') || text.match(/\d+[.,]\d+/))) {
+                        menuItems.push(text);
                     }
                 });
                 
-                container.innerHTML = menuHTML;
+                const uniqueItems = [...new Set(menuItems)];
+                
+                if (uniqueItems.length === 0) {
+                    container.innerHTML = `
+                        <div class="no-menu">
+                            Menu sa aktualizuje v deň otvorenia reštaurácie.<br>
+                            Použite tlačidlo "Navštíviť stránku" pre aktuálne informácie.
+                        </div>
+                    `;
+                } else {
+                    let menuHTML = '<div class="menu-date">📅 Dnešné menu</div>';
+                    
+                    uniqueItems.slice(0, 15).forEach(item => {
+                        const priceMatch = item.match(/(\d+[.,]\d+)\s*€?/);
+                        let dishName = item;
+                        let price = '';
+                        
+                        if (priceMatch) {
+                            price = priceMatch[1].replace(',', '.') + ' €';
+                            dishName = item.substring(0, priceMatch.index).trim();
+                        }
+                        
+                        if (dishName && dishName.length > 5) {
+                            menuHTML += `
+                                <div class="menu-item">
+                                    <div class="dish-name">${dishName}</div>
+                                    ${price ? `<div class="price">${price}</div>` : ''}
+                                </div>
+                            `;
+                        }
+                    });
+                    
+                    container.innerHTML = menuHTML;
+                }
                 
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Error fetching Foodgarden Pressburg:', error);
                 container.innerHTML = `
                     <div class="error">
-                        Nepodarilo sa načítať menu.<br>
-                        Použite tlačidlo "Navštíviť stránku" vyššie.
+                        ⚠️ Nepodarilo sa načítať menu z dôvodu CORS obmedzení.<br><br>
+                        <strong>Riešenie:</strong> Kliknite na tlačidlo "Navštíviť stránku" vyššie.
                     </div>
                 `;
             }
@@ -506,74 +565,62 @@
             const container = document.getElementById('foodgarden-apollo-content');
             
             try {
-                const html = await fetchWithProxy('https://apollo.foodgarden.sk/');
+                const html = await fetchWithCORS('https://apollo.foodgarden.sk/');
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(html, 'text/html');
                 
-                const currentDay = getCurrentDayInSlovak();
-                let menuHTML = `<div class="menu-date">📅 ${currentDay}</div>`;
+                const menuItems = [];
+                const allText = doc.body.textContent;
+                const lines = allText.split('\n');
                 
-                // Find today's section
-                const headings = doc.querySelectorAll('h2');
-                let todaySection = null;
-                
-                for (let h2 of headings) {
-                    if (h2.textContent.trim().toUpperCase() === currentDay.toUpperCase()) {
-                        todaySection = h2.parentElement;
-                        break;
-                    }
-                }
-                
-                if (!todaySection) {
-                    container.innerHTML = menuHTML + '<div class="no-menu">Menu pre dnešný deň nie je dostupné.</div>';
-                    return;
-                }
-                
-                const menuItems = todaySection.querySelectorAll('h3');
-                
-                if (menuItems.length === 0) {
-                    container.innerHTML = menuHTML + '<div class="no-menu">Menu pre dnešný deň nie je dostupné.</div>';
-                    return;
-                }
-                
-                menuItems.forEach(h3 => {
-                    const dishName = h3.textContent.trim();
-                    const nextElement = h3.nextElementSibling;
-                    let details = '';
-                    let price = '';
-                    
-                    if (nextElement && nextElement.tagName === 'P') {
-                        details = nextElement.textContent.trim();
-                    }
-                    
-                    const priceElement = h3.parentElement.querySelector('h5');
-                    if (priceElement) {
-                        price = priceElement.textContent.trim();
-                    }
-                    
-                    if (dishName && !dishName.includes('Alergény')) {
-                        menuHTML += `
-                            <div class="menu-item">
-                                <div class="dish-row">
-                                    <div>
-                                        <div class="dish-name">${dishName}</div>
-                                        ${details ? `<div class="dish-details">${details}</div>` : ''}
-                                    </div>
-                                    ${price ? `<div class="price">${price}</div>` : ''}
-                                </div>
-                            </div>
-                        `;
+                lines.forEach(line => {
+                    const text = line.trim();
+                    if (text.length > 10 && text.length < 300 && (text.includes('€') || text.match(/\d+[.,]\d+/))) {
+                        menuItems.push(text);
                     }
                 });
                 
-                container.innerHTML = menuHTML;
+                const uniqueItems = [...new Set(menuItems)];
+                
+                if (uniqueItems.length === 0) {
+                    container.innerHTML = `
+                        <div class="no-menu">
+                            Menu sa aktualizuje v deň otvorenia reštaurácie.<br>
+                            Použite tlačidlo "Navštíviť stránku" pre aktuálne informácie.
+                        </div>
+                    `;
+                } else {
+                    let menuHTML = '<div class="menu-date">📅 Dnešné menu</div>';
+                    
+                    uniqueItems.slice(0, 15).forEach(item => {
+                        const priceMatch = item.match(/(\d+[.,]\d+)\s*€?/);
+                        let dishName = item;
+                        let price = '';
+                        
+                        if (priceMatch) {
+                            price = priceMatch[1].replace(',', '.') + ' €';
+                            dishName = item.substring(0, priceMatch.index).trim();
+                        }
+                        
+                        if (dishName && dishName.length > 5) {
+                            menuHTML += `
+                                <div class="menu-item">
+                                    <div class="dish-name">${dishName}</div>
+                                    ${price ? `<div class="price">${price}</div>` : ''}
+                                </div>
+                            `;
+                        }
+                    });
+                    
+                    container.innerHTML = menuHTML;
+                }
                 
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Error fetching Foodgarden Apollo:', error);
                 container.innerHTML = `
                     <div class="error">
-                        Nepodarilo sa načítať menu.<br>
-                        Použite tlačidlo "Navštíviť stránku" vyššie.
+                        ⚠️ Nepodarilo sa načítať menu z dôvodu CORS obmedzení.<br><br>
+                        <strong>Riešenie:</strong> Kliknite na tlačidlo "Navštíviť stránku" vyššie.
                     </div>
                 `;
             }
