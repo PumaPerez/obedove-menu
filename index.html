@@ -436,13 +436,14 @@
                 const currentDay = getCurrentDayInSlovak();
                 let menuHTML = `<div class="menu-date">📅 ${currentDay}</div>`;
                 
-                // Find the section with today's day name in h2
-                const allSections = doc.querySelectorAll('h2');
+                // Find "DNES VARÍME" or "DNESNÉ MENU" section first
                 let targetSection = null;
+                const allHeadings = doc.querySelectorAll('h2, h3, div[class*="title"]');
                 
-                for (let h2 of allSections) {
-                    if (h2.textContent.trim().toUpperCase() === currentDay.toUpperCase()) {
-                        targetSection = h2.closest('div[class*="tab"], section, article') || h2.parentElement;
+                for (let heading of allHeadings) {
+                    const text = heading.textContent.trim().toUpperCase();
+                    if (text.includes('DNES VARÍME') || text === 'DNESNÉ MENU' || text === currentDay.toUpperCase()) {
+                        targetSection = heading.closest('div[class*="tab"], section, article') || heading.parentElement;
                         break;
                     }
                 }
@@ -460,26 +461,41 @@
                 };
                 
                 let currentCategory = 'denne';
+                let foundDenneMenu = false;
                 
-                // Get all elements in the section
-                const allElements = targetSection.querySelectorAll('*');
+                // Get all elements in the section, but stop at next day section
+                const allElements = Array.from(targetSection.querySelectorAll('*'));
                 
-                allElements.forEach(el => {
-                    // Check for category headers
+                for (let el of allElements) {
                     const text = el.textContent.trim().toLowerCase();
                     
+                    // Stop if we hit another day section
+                    if (el.tagName === 'H2' && text.match(/pondelok|utorok|streda|štvrtok|piatok|sobota|nedeľa/i)) {
+                        const dayName = text.trim().toUpperCase();
+                        if (dayName !== currentDay.toUpperCase() && foundDenneMenu) {
+                            break; // Stop processing, we've moved to another day
+                        }
+                    }
+                    
+                    // Check for category headers
                     if (el.tagName === 'DIV' || el.tagName === 'H4' || el.classList.length > 0) {
                         if (text.includes('vegán') || text.includes('vegan')) {
                             currentCategory = 'vegan';
-                            return;
+                            foundDenneMenu = true;
+                            continue;
                         } else if (text.includes('stála ponuka') || text.includes('stala ponuka')) {
                             currentCategory = 'stala';
-                            return;
+                            foundDenneMenu = true;
+                            continue;
                         } else if (text.includes('denné menu') || text.includes('denne menu')) {
                             currentCategory = 'denne';
-                            return;
+                            foundDenneMenu = true;
+                            continue;
                         }
                     }
+                    
+                    // Only process if we found "Denné menu" section
+                    if (!foundDenneMenu) continue;
                     
                     // Get dishes (h3) and prices (h5)
                     if (el.tagName === 'H3') {
@@ -493,7 +509,7 @@
                         
                         // Skip if it's just "Alergény" or empty
                         if (!dishText || dishText === 'Alergény' || dishText.startsWith('Alergény')) {
-                            return;
+                            continue;
                         }
                         
                         // Find the price in the next h5 element
@@ -505,7 +521,7 @@
                             categories[currentCategory].items.push({ name: dishText, price: price });
                         }
                     }
-                });
+                }
                 
                 // Build HTML with categories
                 let hasAnyItems = false;
@@ -556,13 +572,14 @@
                 const currentDay = getCurrentDayInSlovak();
                 let menuHTML = `<div class="menu-date">📅 ${currentDay}</div>`;
                 
-                // Find the section with today's day name in h2
-                const allSections = doc.querySelectorAll('h2');
+                // Find "DNES VARÍME" or "DNESNÉ MENU" section first
                 let targetSection = null;
+                const allHeadings = doc.querySelectorAll('h2, h3, div[class*="title"]');
                 
-                for (let h2 of allSections) {
-                    if (h2.textContent.trim().toUpperCase() === currentDay.toUpperCase()) {
-                        targetSection = h2.closest('div[class*="tab"], section, article') || h2.parentElement;
+                for (let heading of allHeadings) {
+                    const text = heading.textContent.trim().toUpperCase();
+                    if (text.includes('DNES VARÍME') || text === 'DNESNÉ MENU' || text === currentDay.toUpperCase()) {
+                        targetSection = heading.closest('div[class*="tab"], section, article') || heading.parentElement;
                         break;
                     }
                 }
@@ -580,26 +597,41 @@
                 };
                 
                 let currentCategory = 'denne';
+                let foundDenneMenu = false;
                 
-                // Get all elements in the section
-                const allElements = targetSection.querySelectorAll('*');
+                // Get all elements in the section, but stop at next day section
+                const allElements = Array.from(targetSection.querySelectorAll('*'));
                 
-                allElements.forEach(el => {
-                    // Check for category headers
+                for (let el of allElements) {
                     const text = el.textContent.trim().toLowerCase();
                     
+                    // Stop if we hit another day section
+                    if (el.tagName === 'H2' && text.match(/pondelok|utorok|streda|štvrtok|piatok|sobota|nedeľa/i)) {
+                        const dayName = text.trim().toUpperCase();
+                        if (dayName !== currentDay.toUpperCase() && foundDenneMenu) {
+                            break; // Stop processing, we've moved to another day
+                        }
+                    }
+                    
+                    // Check for category headers
                     if (el.tagName === 'DIV' || el.tagName === 'H4' || el.classList.length > 0) {
                         if (text.includes('vegán') || text.includes('vegan')) {
                             currentCategory = 'vegan';
-                            return;
+                            foundDenneMenu = true;
+                            continue;
                         } else if (text.includes('stála ponuka') || text.includes('stala ponuka')) {
                             currentCategory = 'stala';
-                            return;
+                            foundDenneMenu = true;
+                            continue;
                         } else if (text.includes('denné menu') || text.includes('denne menu')) {
                             currentCategory = 'denne';
-                            return;
+                            foundDenneMenu = true;
+                            continue;
                         }
                     }
+                    
+                    // Only process if we found "Denné menu" section
+                    if (!foundDenneMenu) continue;
                     
                     // Get dishes (h3) and prices (h5)
                     if (el.tagName === 'H3') {
@@ -613,7 +645,7 @@
                         
                         // Skip if it's just "Alergény" or empty
                         if (!dishText || dishText === 'Alergény' || dishText.startsWith('Alergény')) {
-                            return;
+                            continue;
                         }
                         
                         // Find the price in the next h5 element
@@ -625,7 +657,7 @@
                             categories[currentCategory].items.push({ name: dishText, price: price });
                         }
                     }
-                });
+                }
                 
                 // Build HTML with categories
                 let hasAnyItems = false;
