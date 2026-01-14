@@ -452,48 +452,84 @@
                     return;
                 }
                 
-                // Get all h3 (dish names) and h5 (prices) within that section
-                const dishes = targetSection.querySelectorAll('h3');
-                const menuItems = [];
+                // Organize items by category
+                const categories = {
+                    'denne': { title: '🍽️ Denné menu', items: [] },
+                    'vegan': { title: '🌱 Vegánske menu', items: [] },
+                    'stala': { title: '📋 Stála ponuka', items: [] }
+                };
                 
-                dishes.forEach(h3 => {
-                    // Get the text before any "Objem:" or "Hmotnosť:" or "|"
-                    let dishText = h3.textContent;
+                let currentCategory = 'denne';
+                
+                // Get all elements in the section
+                const allElements = targetSection.querySelectorAll('*');
+                
+                allElements.forEach(el => {
+                    // Check for category headers
+                    const text = el.textContent.trim().toLowerCase();
                     
-                    // Remove everything after Objem, Hmotnosť, or |
-                    dishText = dishText.split('Objem:')[0];
-                    dishText = dishText.split('Hmotnosť:')[0];
-                    dishText = dishText.split('|')[0];
-                    dishText = dishText.trim();
-                    
-                    // Skip if it's just "Alergény" or empty
-                    if (!dishText || dishText === 'Alergény' || dishText.startsWith('Alergény')) {
-                        return;
+                    if (el.tagName === 'DIV' || el.tagName === 'H4' || el.classList.length > 0) {
+                        if (text.includes('vegán') || text.includes('vegan')) {
+                            currentCategory = 'vegan';
+                            return;
+                        } else if (text.includes('stála ponuka') || text.includes('stala ponuka')) {
+                            currentCategory = 'stala';
+                            return;
+                        } else if (text.includes('denné menu') || text.includes('denne menu')) {
+                            currentCategory = 'denne';
+                            return;
+                        }
                     }
                     
-                    // Find the price in the next h5 element
-                    const parent = h3.closest('div[class*="menu"], div[class*="item"], article, section') || h3.parentElement;
-                    const priceElement = parent.querySelector('h5');
-                    
-                    if (priceElement) {
-                        const price = priceElement.textContent.trim();
-                        menuItems.push({ name: dishText, price: price });
+                    // Get dishes (h3) and prices (h5)
+                    if (el.tagName === 'H3') {
+                        let dishText = el.textContent;
+                        
+                        // Remove everything after Objem, Hmotnosť, or |
+                        dishText = dishText.split('Objem:')[0];
+                        dishText = dishText.split('Hmotnosť:')[0];
+                        dishText = dishText.split('|')[0];
+                        dishText = dishText.trim();
+                        
+                        // Skip if it's just "Alergény" or empty
+                        if (!dishText || dishText === 'Alergény' || dishText.startsWith('Alergény')) {
+                            return;
+                        }
+                        
+                        // Find the price in the next h5 element
+                        const parent = el.closest('div[class*="menu"], div[class*="item"], article, section') || el.parentElement;
+                        const priceElement = parent.querySelector('h5');
+                        
+                        if (priceElement) {
+                            const price = priceElement.textContent.trim();
+                            categories[currentCategory].items.push({ name: dishText, price: price });
+                        }
                     }
                 });
                 
-                if (menuItems.length === 0) {
-                    menuHTML += '<div class="no-menu">Menu pre dnešný deň nie je dostupné.</div>';
-                } else {
-                    menuItems.forEach(item => {
-                        menuHTML += `
-                            <div class="menu-item">
-                                <div class="dish-row">
-                                    <div class="dish-name">${item.name}</div>
-                                    <div class="price">${item.price}</div>
+                // Build HTML with categories
+                let hasAnyItems = false;
+                
+                Object.values(categories).forEach(category => {
+                    if (category.items.length > 0) {
+                        hasAnyItems = true;
+                        menuHTML += `<div class="section-title">${category.title}</div>`;
+                        
+                        category.items.forEach(item => {
+                            menuHTML += `
+                                <div class="menu-item">
+                                    <div class="dish-row">
+                                        <div class="dish-name">${item.name}</div>
+                                        <div class="price">${item.price}</div>
+                                    </div>
                                 </div>
-                            </div>
-                        `;
-                    });
+                            `;
+                        });
+                    }
+                });
+                
+                if (!hasAnyItems) {
+                    menuHTML += '<div class="no-menu">Menu pre dnešný deň nie je dostupné.</div>';
                 }
                 
                 container.innerHTML = menuHTML;
@@ -536,48 +572,84 @@
                     return;
                 }
                 
-                // Get all h3 (dish names) and h5 (prices) within that section
-                const dishes = targetSection.querySelectorAll('h3');
-                const menuItems = [];
+                // Organize items by category
+                const categories = {
+                    'denne': { title: '🍽️ Denné menu', items: [] },
+                    'vegan': { title: '🌱 Vegánske menu', items: [] },
+                    'stala': { title: '📋 Stála ponuka', items: [] }
+                };
                 
-                dishes.forEach(h3 => {
-                    // Get the text before any "Objem:" or "Hmotnosť:" or "|"
-                    let dishText = h3.textContent;
+                let currentCategory = 'denne';
+                
+                // Get all elements in the section
+                const allElements = targetSection.querySelectorAll('*');
+                
+                allElements.forEach(el => {
+                    // Check for category headers
+                    const text = el.textContent.trim().toLowerCase();
                     
-                    // Remove everything after Objem, Hmotnosť, or |
-                    dishText = dishText.split('Objem:')[0];
-                    dishText = dishText.split('Hmotnosť:')[0];
-                    dishText = dishText.split('|')[0];
-                    dishText = dishText.trim();
-                    
-                    // Skip if it's just "Alergény" or empty
-                    if (!dishText || dishText === 'Alergény' || dishText.startsWith('Alergény')) {
-                        return;
+                    if (el.tagName === 'DIV' || el.tagName === 'H4' || el.classList.length > 0) {
+                        if (text.includes('vegán') || text.includes('vegan')) {
+                            currentCategory = 'vegan';
+                            return;
+                        } else if (text.includes('stála ponuka') || text.includes('stala ponuka')) {
+                            currentCategory = 'stala';
+                            return;
+                        } else if (text.includes('denné menu') || text.includes('denne menu')) {
+                            currentCategory = 'denne';
+                            return;
+                        }
                     }
                     
-                    // Find the price in the next h5 element
-                    const parent = h3.closest('div[class*="menu"], div[class*="item"], article, section') || h3.parentElement;
-                    const priceElement = parent.querySelector('h5');
-                    
-                    if (priceElement) {
-                        const price = priceElement.textContent.trim();
-                        menuItems.push({ name: dishText, price: price });
+                    // Get dishes (h3) and prices (h5)
+                    if (el.tagName === 'H3') {
+                        let dishText = el.textContent;
+                        
+                        // Remove everything after Objem, Hmotnosť, or |
+                        dishText = dishText.split('Objem:')[0];
+                        dishText = dishText.split('Hmotnosť:')[0];
+                        dishText = dishText.split('|')[0];
+                        dishText = dishText.trim();
+                        
+                        // Skip if it's just "Alergény" or empty
+                        if (!dishText || dishText === 'Alergény' || dishText.startsWith('Alergény')) {
+                            return;
+                        }
+                        
+                        // Find the price in the next h5 element
+                        const parent = el.closest('div[class*="menu"], div[class*="item"], article, section') || el.parentElement;
+                        const priceElement = parent.querySelector('h5');
+                        
+                        if (priceElement) {
+                            const price = priceElement.textContent.trim();
+                            categories[currentCategory].items.push({ name: dishText, price: price });
+                        }
                     }
                 });
                 
-                if (menuItems.length === 0) {
-                    menuHTML += '<div class="no-menu">Menu pre dnešný deň nie je dostupné.</div>';
-                } else {
-                    menuItems.forEach(item => {
-                        menuHTML += `
-                            <div class="menu-item">
-                                <div class="dish-row">
-                                    <div class="dish-name">${item.name}</div>
-                                    <div class="price">${item.price}</div>
+                // Build HTML with categories
+                let hasAnyItems = false;
+                
+                Object.values(categories).forEach(category => {
+                    if (category.items.length > 0) {
+                        hasAnyItems = true;
+                        menuHTML += `<div class="section-title">${category.title}</div>`;
+                        
+                        category.items.forEach(item => {
+                            menuHTML += `
+                                <div class="menu-item">
+                                    <div class="dish-row">
+                                        <div class="dish-name">${item.name}</div>
+                                        <div class="price">${item.price}</div>
+                                    </div>
                                 </div>
-                            </div>
-                        `;
-                    });
+                            `;
+                        });
+                    }
+                });
+                
+                if (!hasAnyItems) {
+                    menuHTML += '<div class="no-menu">Menu pre dnešný deň nie je dostupné.</div>';
                 }
                 
                 container.innerHTML = menuHTML;
