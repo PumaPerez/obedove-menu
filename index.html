@@ -469,32 +469,43 @@
                 for (let el of allElements) {
                     const text = el.textContent.trim().toLowerCase();
                     
-                    // Stop if we hit another day section
-                    if (el.tagName === 'H2' && text.match(/pondelok|utorok|streda|štvrtok|piatok|sobota|nedeľa/i)) {
+                    // Stop if we hit another day section or "Týždenné menu"
+                    if ((el.tagName === 'H2' || el.tagName === 'H3') && 
+                        (text.match(/pondelok|utorok|streda|štvrtok|piatok|sobota|nedeľa|týždenné menu/i))) {
                         const dayName = text.trim().toUpperCase();
                         if (dayName !== currentDay.toUpperCase() && foundDenneMenu) {
-                            break; // Stop processing, we've moved to another day
+                            break; // Stop processing, we've moved to another section
                         }
                     }
                     
                     // Check for category headers
-                    if (el.tagName === 'DIV' || el.tagName === 'H4' || el.classList.length > 0) {
-                        if (text.includes('vegán') || text.includes('vegan')) {
+                    if (el.tagName === 'DIV' || el.tagName === 'H4' || el.tagName === 'IMG' || el.classList.length > 0) {
+                        const parentText = el.parentElement ? el.parentElement.textContent.trim().toLowerCase() : '';
+                        const combinedText = text + ' ' + parentText;
+                        
+                        if (combinedText.includes('vegán') || combinedText.includes('vegan')) {
                             currentCategory = 'vegan';
                             foundDenneMenu = true;
                             continue;
-                        } else if (text.includes('stála ponuka') || text.includes('stala ponuka')) {
+                        } else if (combinedText.includes('stála ponuka') || combinedText.includes('stala ponuka')) {
                             currentCategory = 'stala';
                             foundDenneMenu = true;
                             continue;
-                        } else if (text.includes('denné menu') || text.includes('denne menu')) {
+                        } else if (combinedText.includes('denné menu') || combinedText.includes('denne menu')) {
                             currentCategory = 'denne';
                             foundDenneMenu = true;
                             continue;
                         }
                     }
                     
-                    // Only process if we found "Denné menu" section
+                    // Start collecting items after we see first category marker
+                    if (!foundDenneMenu && (text.includes('denne menu') || text.includes('denné menu') || 
+                        text.includes('polievka') || text.includes('0.50') || text.includes('slepačí'))) {
+                        foundDenneMenu = true;
+                        currentCategory = 'denne';
+                    }
+                    
+                    // Only process if we found menu section
                     if (!foundDenneMenu) continue;
                     
                     // Get dishes (h3) and prices (h5)
@@ -605,32 +616,43 @@
                 for (let el of allElements) {
                     const text = el.textContent.trim().toLowerCase();
                     
-                    // Stop if we hit another day section
-                    if (el.tagName === 'H2' && text.match(/pondelok|utorok|streda|štvrtok|piatok|sobota|nedeľa/i)) {
+                    // Stop if we hit another day section or "Týždenné menu"
+                    if ((el.tagName === 'H2' || el.tagName === 'H3') && 
+                        (text.match(/pondelok|utorok|streda|štvrtok|piatok|sobota|nedeľa|týždenné menu/i))) {
                         const dayName = text.trim().toUpperCase();
                         if (dayName !== currentDay.toUpperCase() && foundDenneMenu) {
-                            break; // Stop processing, we've moved to another day
+                            break; // Stop processing, we've moved to another section
                         }
                     }
                     
                     // Check for category headers
-                    if (el.tagName === 'DIV' || el.tagName === 'H4' || el.classList.length > 0) {
-                        if (text.includes('vegán') || text.includes('vegan')) {
+                    if (el.tagName === 'DIV' || el.tagName === 'H4' || el.tagName === 'IMG' || el.classList.length > 0) {
+                        const parentText = el.parentElement ? el.parentElement.textContent.trim().toLowerCase() : '';
+                        const combinedText = text + ' ' + parentText;
+                        
+                        if (combinedText.includes('vegán') || combinedText.includes('vegan')) {
                             currentCategory = 'vegan';
                             foundDenneMenu = true;
                             continue;
-                        } else if (text.includes('stála ponuka') || text.includes('stala ponuka')) {
+                        } else if (combinedText.includes('stála ponuka') || combinedText.includes('stala ponuka')) {
                             currentCategory = 'stala';
                             foundDenneMenu = true;
                             continue;
-                        } else if (text.includes('denné menu') || text.includes('denne menu')) {
+                        } else if (combinedText.includes('denné menu') || combinedText.includes('denne menu')) {
                             currentCategory = 'denne';
                             foundDenneMenu = true;
                             continue;
                         }
                     }
                     
-                    // Only process if we found "Denné menu" section
+                    // Start collecting items after we see first category marker
+                    if (!foundDenneMenu && (text.includes('denne menu') || text.includes('denné menu') || 
+                        text.includes('polievka') || text.includes('0.50') || text.includes('slepačí'))) {
+                        foundDenneMenu = true;
+                        currentCategory = 'denne';
+                    }
+                    
+                    // Only process if we found menu section
                     if (!foundDenneMenu) continue;
                     
                     // Get dishes (h3) and prices (h5)
