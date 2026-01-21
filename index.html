@@ -126,13 +126,20 @@
         }
 
         .restaurant-header {
+            margin-bottom: 20px;
+        }
+
+        .restaurant-header-top {
             display: grid;
             grid-template-columns: 1fr auto;
             align-items: center;
             gap: 15px;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
+            margin-bottom: 15px;
+        }
+
+        .restaurant-header-border {
             border-bottom: 3px solid #003366;
+            padding-bottom: 15px;
         }
 
         .restaurant-name {
@@ -288,6 +295,9 @@
                 font-size: 1.2em;
             }
             .restaurant-header {
+                margin-bottom: 15px;
+            }
+            .restaurant-header-top {
                 grid-template-columns: 1fr;
             }
             .visit-link {
@@ -315,10 +325,13 @@
         <div class="restaurants-grid">
             <div class="restaurant-card">
                 <div class="restaurant-header">
-                    <div class="restaurant-name">🍴 Lunch Break</div>
-                    <a href="https://www.lunch-break.sk/menu-apollo/" target="_blank" class="visit-link">
-                        Navštíviť stránku →
-                    </a>
+                    <div class="restaurant-header-top">
+                        <div class="restaurant-name">🍴 Lunch Break</div>
+                        <a href="https://www.lunch-break.sk/menu-apollo/" target="_blank" class="visit-link">
+                            Navštíviť stránku →
+                        </a>
+                    </div>
+                    <div class="restaurant-header-border"></div>
                 </div>
                 <div id="lunchbreak-content">
                     <div class="loading-indicator">
@@ -330,10 +343,13 @@
 
             <div class="restaurant-card">
                 <div class="restaurant-header">
-                    <div class="restaurant-name">🌿 Foodgarden Pressburg</div>
-                    <a href="https://pressburg.foodgarden.sk/denne-menu-foodgarden-pressburg/" target="_blank" class="visit-link">
-                        Navštíviť stránku →
-                    </a>
+                    <div class="restaurant-header-top">
+                        <div class="restaurant-name">🌿 Foodgarden Pressburg</div>
+                        <a href="https://pressburg.foodgarden.sk/denne-menu-foodgarden-pressburg/" target="_blank" class="visit-link">
+                            Navštíviť stránku →
+                        </a>
+                    </div>
+                    <div class="restaurant-header-border"></div>
                 </div>
                 <div id="foodgarden-pressburg-content">
                     <div class="loading-indicator">
@@ -345,10 +361,13 @@
 
             <div class="restaurant-card">
                 <div class="restaurant-header">
-                    <div class="restaurant-name">🏛️ Foodgarden Apollo</div>
-                    <a href="https://apollo.foodgarden.sk/" target="_blank" class="visit-link">
-                        Navštíviť stránku →
-                    </a>
+                    <div class="restaurant-header-top">
+                        <div class="restaurant-name">🏛️ Foodgarden Apollo</div>
+                        <a href="https://apollo.foodgarden.sk/" target="_blank" class="visit-link">
+                            Navštíviť stránku →
+                        </a>
+                    </div>
+                    <div class="restaurant-header-border"></div>
                 </div>
                 <div id="foodgarden-apollo-content">
                     <div class="loading-indicator">
