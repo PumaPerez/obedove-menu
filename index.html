@@ -189,10 +189,17 @@
         }
 
         .menu-date {
-            font-size: 1.1em;
+            font-size: 1em;
             color: #003366;
             font-weight: 600;
             margin-bottom: 15px;
+            padding: 10px 15px;
+            background: linear-gradient(to right, #e8f4f8 0%, #f8fafc 100%);
+            border-left: 4px solid #003366;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .section-title {
@@ -390,6 +397,20 @@
             return days[new Date().getDay()];
         }
 
+        function getCurrentDateFormatted() {
+            const now = new Date();
+            const day = String(now.getDate()).padStart(2, '0');
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const year = now.getFullYear();
+            return `${day}.${month}.${year}`;
+        }
+
+        function getFullDateString() {
+            const dayName = getCurrentDayInSlovak();
+            const dateFormatted = getCurrentDateFormatted();
+            return `${dayName} ${dateFormatted}`;
+        }
+
         async function fetchWithProxy(url) {
             const proxy = 'https://api.allorigins.win/raw?url=';
             const response = await fetch(proxy + encodeURIComponent(url));
@@ -405,13 +426,8 @@
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(html, 'text/html');
                 
-                let menuDate = 'Dnešné menu';
-                const dateElement = doc.querySelector('h5');
-                if (dateElement) {
-                    menuDate = dateElement.textContent.trim();
-                }
-                
-                let menuHTML = `<div class="menu-date">📅 ${menuDate}</div>`;
+                const fullDate = getFullDateString();
+                let menuHTML = `<div class="menu-date">📅 ${fullDate}</div>`;
                 
                 const allParagraphs = doc.querySelectorAll('p');
                 const menuItems = [];
@@ -470,7 +486,8 @@
                 const doc = parser.parseFromString(html, 'text/html');
                 
                 const currentDay = getCurrentDayInSlovak();
-                let menuHTML = `<div class="menu-date">📅 ${currentDay}</div>`;
+                const fullDate = getFullDateString();
+                let menuHTML = `<div class="menu-date">📅 ${fullDate}</div>`;
                 
                 let targetSection = null;
                 const allHeadings = doc.querySelectorAll('h2, h3, div[class*="title"]');
@@ -604,7 +621,8 @@
                 const doc = parser.parseFromString(html, 'text/html');
                 
                 const currentDay = getCurrentDayInSlovak();
-                let menuHTML = `<div class="menu-date">📅 ${currentDay}</div>`;
+                const fullDate = getFullDateString();
+                let menuHTML = `<div class="menu-date">📅 ${fullDate}</div>`;
                 
                 let targetSection = null;
                 const allHeadings = doc.querySelectorAll('h2, h3, div[class*="title"]');
