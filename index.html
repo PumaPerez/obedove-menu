@@ -126,28 +126,36 @@
         }
 
         .restaurant-header {
-            display: flex;
-            justify-content: space-between;
+            display: grid;
+            grid-template-columns: 1fr auto;
             align-items: center;
+            gap: 15px;
             margin-bottom: 20px;
             padding-bottom: 15px;
-            border-bottom: 2px solid #f0f0f0;
+            border-bottom: 3px solid #003366;
         }
 
         .restaurant-name {
-            font-size: 1.6em;
+            font-size: 1.5em;
             font-weight: 700;
             color: #003366;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .visit-link {
             background: #003366;
             color: white;
-            padding: 8px 16px;
+            padding: 10px 20px;
             border-radius: 6px;
             text-decoration: none;
-            font-size: 0.85em;
+            font-size: 0.9em;
             transition: all 0.2s;
+            white-space: nowrap;
+            font-weight: 600;
+            text-align: center;
+            min-width: 160px;
         }
 
         .visit-link:hover {
@@ -280,7 +288,13 @@
                 margin-top: 5px;
             }
             .restaurant-name {
-                font-size: 1.3em;
+                font-size: 1.2em;
+            }
+            .restaurant-header {
+                grid-template-columns: 1fr;
+            }
+            .visit-link {
+                width: 100%;
             }
             body::before {
                 width: 400px;
