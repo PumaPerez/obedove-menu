@@ -494,39 +494,91 @@
                 const fullDate = getFullDateString();
                 let menuHTML = `<div class="menu-date">📅 ${fullDate}</div>`;
                 
-                const allParagraphs = doc.querySelectorAll('p');
-                const menuItems = [];
+                const allParagraphs = doc.querySelectorAll('p, strong, h4, h5');
+                const sections = {
+                    'polievka': { title: '🥣 Polievka', items: [] },
+                    'masove': { title: '🍖 Mäsové menu', items: [] },
+                    'bezmäsité': { title: '🥗 Bezmäsité menu', items: [] },
+                    'special': { title: '⭐ Špeciál menu', items: [] }
+                };
                 
-                allParagraphs.forEach(p => {
-                    const text = p.textContent.trim();
-                    const match = text.match(/^([A-Z]),?\s*(.*?)\s*(\d+[.,]\d+)\s*€/);
-                    if (match) {
-                        const letter = match[1];
-                        const description = match[2].trim();
-                        const price = match[3].replace(',', '.') + ' €';
-                        
-                        if (description) {
-                            menuItems.push({
-                                name: `${letter}, ${description}`,
-                                price: price
-                            });
+                let currentSection = null;
+                
+                allParagraphs.forEach(el => {
+                    const text = el.textContent.trim();
+                    const upperText = text.toUpperCase();
+                    
+                    // Detect sections
+                    if (upperText.includes('POLIEVKA') && !upperText.includes('ŠPECIÁL')) {
+                        currentSection = 'polievka';
+                        return;
+                    } else if (upperText.includes('MÄSOVÉ MENU')) {
+                        currentSection = 'masove';
+                        return;
+                    } else if (upperText.includes('BEZMÄSITÉ MENU')) {
+                        currentSection = 'bezmäsité';
+                        return;
+                    } else if (upperText.includes('ŠPECIÁL')) {
+                        currentSection = 'special';
+                        return;
+                    }
+                    
+                    // Extract menu items (A, B, C, etc. with description and price)
+                    if (currentSection && text.length > 5) {
+                        const match = text.match(/^([A-Z]),?\s*(.*?)\s*(\d+[.,]\d+)\s*€/);
+                        if (match) {
+                            const letter = match[1];
+                            const description = match[2].trim();
+                            const price = match[3].replace(',', '.') + ' €';
+                            
+                            if (description) {
+                                sections[currentSection].items.push({
+                                    name: `${letter}, ${description}`,
+                                    price: price
+                                });
+                            }
+                        } else if (text.includes('€')) {
+                            // Also catch items without letter prefix
+                            const priceMatch = text.match(/(\d+[.,]\d+)\s*€/);
+                            if (priceMatch) {
+                                const price = priceMatch[1].replace(',', '.') + ' €';
+                                const dishName = text.substring(0, priceMatch.index).trim();
+                                
+                                if (dishName && dishName.length > 3 && 
+                                    !dishName.toUpperCase().includes('POLIEVKA') &&
+                                    !dishName.toUpperCase().includes('MENU')) {
+                                    sections[currentSection].items.push({
+                                        name: dishName,
+                                        price: price
+                                    });
+                                }
+                            }
                         }
                     }
                 });
                 
-                if (menuItems.length === 0) {
-                    menuHTML += '<div class="no-menu">Menu bude dostupné v deň otvorenia reštaurácie.</div>';
-                } else {
-                    menuItems.forEach(item => {
-                        menuHTML += `
-                            <div class="menu-item">
-                                <div class="dish-row">
-                                    <div class="dish-name">${item.name}</div>
-                                    <div class="price">${item.price}</div>
+                let hasAnyItems = false;
+                
+                Object.values(sections).forEach(section => {
+                    if (section.items.length > 0) {
+                        hasAnyItems = true;
+                        menuHTML += `<div class="section-title">${section.title}</div>`;
+                        
+                        section.items.forEach(item => {
+                            menuHTML += `
+                                <div class="menu-item">
+                                    <div class="dish-row">
+                                        <div class="dish-name">${item.name}</div>
+                                        <div class="price">${item.price}</div>
+                                    </div>
                                 </div>
-                            </div>
-                        `;
-                    });
+                            `;
+                        });
+                    }
+                });
+                
+                if (!hasAnyItems) {
+                    menuHTML += '<div class="no-menu">Menu bude dostupné v deň otvorenia reštaurácie.</div>';
                 }
                 
                 container.innerHTML = menuHTML;
