@@ -1,9 +1,4 @@
-.no-menu {
-            text-align: center;
-            padding: 20px;
-            color: #666;
-            font-size: 0.95em;
-        }<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="sk">
 <head>
     <meta charset="UTF-8">
@@ -296,6 +291,13 @@
             background: #004080;
         }
 
+        .no-menu {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 0.95em;
+        }
+
         .updated-time {
             text-align: center;
             color: #003366;
@@ -446,7 +448,6 @@
         }
 
         async function fetchWithProxy(url) {
-            // Try multiple CORS proxies
             const proxies = [
                 'https://api.allorigins.win/raw?url=',
                 'https://corsproxy.io/?',
@@ -508,7 +509,6 @@
                     const text = el.textContent.trim();
                     const upperText = text.toUpperCase();
                     
-                    // Detect sections
                     if (upperText.includes('POLIEVKA') && !upperText.includes('ŠPECIÁL')) {
                         currentSection = 'polievka';
                         return;
@@ -523,7 +523,6 @@
                         return;
                     }
                     
-                    // Extract menu items (A, B, C, etc. with description and price)
                     if (currentSection && text.length > 5) {
                         const match = text.match(/^([A-Z]),?\s*(.*?)\s*(\d+[.,]\d+)\s*€/);
                         if (match) {
@@ -538,7 +537,6 @@
                                 });
                             }
                         } else if (text.includes('€')) {
-                            // Also catch items without letter prefix
                             const priceMatch = text.match(/(\d+[.,]\d+)\s*€/);
                             if (priceMatch) {
                                 const price = priceMatch[1].replace(',', '.') + ' €';
@@ -752,8 +750,8 @@
                 
                 for (let heading of allHeadings) {
                     const text = heading.textContent.trim().toUpperCase();
-                    if (text.includes('DNES VARÍME') || text === 'DNESNÉ MENU' || text === currentDay.toUpperCase()) {
-                        targetSection = heading.closest('div[class*="tab"], section, article') || heading.parentElement;
+                    if (text.includes('DNES VARÍME') || text === 'DNESNÉ MENU') {
+                        targetSection = heading.closest('div[class*="tab"], section, article, div[id*="menu"]') || heading.parentElement;
                         break;
                     }
                 }
@@ -797,120 +795,4 @@
                             currentCategory = 'stala';
                             foundDenneMenu = true;
                             continue;
-                        } else if (combinedText.includes('denné menu') || combinedText.includes('denne menu')) {
-                            currentCategory = 'denne';
-                            foundDenneMenu = true;
-                            continue;
-                        }
-                    }
-                    
-                    if (!foundDenneMenu && (text.includes('denne menu') || text.includes('denné menu') || 
-                        text.includes('polievka') || text.includes('0.50') || text.includes('slepačí'))) {
-                        foundDenneMenu = true;
-                        currentCategory = 'denne';
-                    }
-                    
-                    if (!foundDenneMenu) continue;
-                    
-                    if (el.tagName === 'H3') {
-                        let dishText = el.textContent;
-                        dishText = dishText.split('Objem:')[0];
-                        dishText = dishText.split('Hmotnosť:')[0];
-                        dishText = dishText.split('|')[0];
-                        dishText = dishText.trim();
-                        
-                        if (!dishText || dishText === 'Alergény' || dishText.startsWith('Alergény')) {
-                            continue;
-                        }
-                        
-                        const parent = el.closest('div[class*="menu"], div[class*="item"], article, section') || el.parentElement;
-                        const priceElement = parent.querySelector('h5');
-                        
-                        if (priceElement) {
-                            const price = priceElement.textContent.trim();
-                            categories[currentCategory].items.push({ name: dishText, price: price });
-                        }
-                    }
-                }
-                
-                let hasAnyItems = false;
-                
-                Object.values(categories).forEach(category => {
-                    if (category.items.length > 0) {
-                        hasAnyItems = true;
-                        menuHTML += `<div class="section-title">${category.title}</div>`;
-                        
-                        category.items.forEach(item => {
-                            menuHTML += `
-                                <div class="menu-item">
-                                    <div class="dish-row">
-                                        <div class="dish-name">${item.name}</div>
-                                        <div class="price">${item.price}</div>
-                                    </div>
-                                </div>
-                            `;
-                        });
-                    }
-                });
-                
-                if (!hasAnyItems) {
-                    menuHTML += '<div class="no-menu">Menu pre dnešný deň nie je dostupné.</div>';
-                }
-                
-                container.innerHTML = menuHTML;
-                
-            } catch (error) {
-                console.error('Error:', error);
-                container.innerHTML = `
-                    <div class="error">
-                        ⚠️ Nepodarilo sa načítať menu z dôvodu technických obmedzení.<br>
-                        <div class="error-details">
-                            Všetky CORS proxy servery zlyhali. Kliknite na tlačidlo "Navštíviť stránku" vyššie pre zobrazenie menu.
-                        </div>
-                        <button class="retry-button" onclick="fetchFoodgardenApollo()">🔄 Skúsiť znova</button>
-                    </div>
-                `;
-            }
-        }
-
-        async function fetchAllMenus() {
-            const fetchBtn = document.getElementById('fetchBtn');
-            const updatedTime = document.getElementById('updatedTime');
-            
-            fetchBtn.disabled = true;
-            
-            document.getElementById('lunchbreak-content').innerHTML = `
-                <div class="loading-indicator">
-                    <div class="spinner"></div>
-                    <p>Načítavam...</p>
-                </div>
-            `;
-            document.getElementById('foodgarden-pressburg-content').innerHTML = `
-                <div class="loading-indicator">
-                    <div class="spinner"></div>
-                    <p>Načítavam...</p>
-                </div>
-            `;
-            document.getElementById('foodgarden-apollo-content').innerHTML = `
-                <div class="loading-indicator">
-                    <div class="spinner"></div>
-                    <p>Načítavam...</p>
-                </div>
-            `;
-            
-            await Promise.all([
-                fetchLunchBreak(),
-                fetchFoodgardenPressburg(),
-                fetchFoodgardenApollo()
-            ]);
-            
-            fetchBtn.disabled = false;
-            
-            const now = new Date();
-            updatedTime.textContent = `Posledná aktualizácia: ${now.toLocaleTimeString('sk-SK')}`;
-        }
-        
-        window.addEventListener('load', fetchAllMenus);
-    </script>
-</body>
-</html>
+                        } else if (combinedText
