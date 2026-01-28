@@ -497,7 +497,7 @@
                 
                 const allParagraphs = doc.querySelectorAll('p, strong, h4, h5');
                 const sections = {
-                    'polievka': { title: '🥣 Polievka', items: [] },
+                    'polievka': { title: '🥣 Polievky', items: [] },
                     'masove': { title: '🍖 Mäsové menu', items: [] },
                     'bezmäsité': { title: '🥗 Bezmäsité menu', items: [] },
                     'special': { title: '⭐ Špeciál menu', items: [] }
@@ -509,8 +509,22 @@
                     const text = el.textContent.trim();
                     const upperText = text.toUpperCase();
                     
-                    if (upperText.includes('POLIEVKA') && !upperText.includes('ŠPECIÁL')) {
+                    // Detect sections
+                    if (upperText.includes('POLIEVKA') && !upperText.includes('ŠPECIÁL') && !upperText.includes('V CENE')) {
                         currentSection = 'polievka';
+                        // Check if this element contains the soup names directly
+                        if (text.includes('/')) {
+                            // Format: "Polievka1 / Polievka2"
+                            const soups = text.split('/').map(s => s.replace(/POLIEVKA/gi, '').trim()).filter(s => s.length > 3);
+                            soups.forEach(soup => {
+                                if (soup && !soup.toUpperCase().includes('MENU') && !soup.toUpperCase().includes('V CENE')) {
+                                    sections.polievka.items.push({
+                                        name: soup,
+                                        price: '(v cene menu)'
+                                    });
+                                }
+                            });
+                        }
                         return;
                     } else if (upperText.includes('MÄSOVÉ MENU')) {
                         currentSection = 'masove';
@@ -523,6 +537,22 @@
                         return;
                     }
                     
+                    // Extract soups if in polievka section
+                    if (currentSection === 'polievka' && text.includes('/')) {
+                        const soups = text.split('/').map(s => s.trim()).filter(s => s.length > 3);
+                        soups.forEach(soup => {
+                            if (!soup.toUpperCase().includes('MENU') && !soup.toUpperCase().includes('POLIEVKA')) {
+                                sections.polievka.items.push({
+                                    name: soup,
+                                    price: '(v cene menu)'
+                                });
+                            }
+                        });
+                        currentSection = null; // Reset after soups
+                        return;
+                    }
+                    
+                    // Extract menu items (A, B, C, etc. with description and price)
                     if (currentSection && text.length > 5) {
                         const match = text.match(/^([A-Z]),?\s*(.*?)\s*(\d+[.,]\d+)\s*€/);
                         if (match) {
@@ -536,7 +566,8 @@
                                     price: price
                                 });
                             }
-                        } else if (text.includes('€')) {
+                        } else if (text.includes('€') && currentSection) {
+                            // Also catch items without letter prefix (for špeciál)
                             const priceMatch = text.match(/(\d+[.,]\d+)\s*€/);
                             if (priceMatch) {
                                 const price = priceMatch[1].replace(',', '.') + ' €';
@@ -544,7 +575,8 @@
                                 
                                 if (dishName && dishName.length > 3 && 
                                     !dishName.toUpperCase().includes('POLIEVKA') &&
-                                    !dishName.toUpperCase().includes('MENU')) {
+                                    !dishName.toUpperCase().includes('MENU') &&
+                                    !dishName.match(/^[A-Z],?\s*$/)) {
                                     sections[currentSection].items.push({
                                         name: dishName,
                                         price: price
