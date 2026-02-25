@@ -174,16 +174,28 @@
         }
 
         .section-title {
-            font-weight: 600;
-            font-size: 0.75em;
-            letter-spacing: 1.5px;
+            font-weight: 700;
+            font-size: 0.72em;
+            letter-spacing: 1.8px;
             text-transform: uppercase;
-            color: var(--muted);
-            margin: 20px 0 10px;
-            padding-bottom: 6px;
-            border-bottom: 1px solid var(--border);
+            color: var(--navy);
+            margin: 24px 0 10px;
+            padding: 7px 12px;
+            background: #eef4ff;
+            border-left: 3px solid var(--navy);
+            border-radius: 0 6px 6px 0;
         }
         .section-title:first-of-type { margin-top: 0; }
+        .section-title.vegan {
+            color: #1b6b2f;
+            background: #edf7f0;
+            border-left-color: #2e7d32;
+        }
+        .section-title.stala {
+            color: #5a3e00;
+            background: #fff8e1;
+            border-left-color: var(--accent);
+        }
 
         .menu-item {
             display: flex;
@@ -344,13 +356,19 @@ function dateHeader() {
     return `<div class="menu-date">📅 ${fullDate()}</div>`;
 }
 
+const SECTION_CLASS = {
+    '🌱 Vegánske menu': 'vegan',
+    '📋 Stála ponuka':  'stala',
+};
+
 function renderItems(sections) {
     let html = '';
     let hasAny = false;
     for (const [title, items] of sections) {
         if (!items.length) continue;
         hasAny = true;
-        html += `<div class="section-title">${title}</div>`;
+        const cls = SECTION_CLASS[title] ? ` ${SECTION_CLASS[title]}` : '';
+        html += `<div class="section-title${cls}">${title}</div>`;
         items.forEach(({name, price}) => {
             html += `<div class="menu-item">
                 <div class="dish-name">${name}</div>
@@ -447,78 +465,81 @@ async function fetchLunchBreak() {
     }
 }
 
-// ── Foodgarden shared parser ─────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────
 
-function parseFoodgarden(doc) {
-    const day = todayName().toUpperCase();
+const DAY_CLASS_MAP = {
+    'Pondelok': 'pondelok',
+    'Utorok':   'utorok',
+    'Streda':   'streda',
+    'Štvrtok':  'stvrtok',
+    'Piatok':   'piatok',
+    'Sobota':   'sobota',
+    'Nedeľa':   'nedela',
+};
+
+function extractRecipeItems(container) {
+    if (!container) return [];
+    return Array.from(container.querySelectorAll('div.recipe_item')).map(item => {
+        const h3    = item.querySelector('div.ri_text h3');
+        const price = item.querySelector('div.ri_cart h5.price, div.ri_cart h5');
+        if (!h3 || !price) return null;
+        return {
+            name:  h3.textContent.trim(),
+            price: price.textContent.replace(/\s+/g, ' ').trim(),
+        };
+    }).filter(Boolean);
+}
+
+// ── Foodgarden PRESSBURG parser ───────────────────────────────────────────
+// Structure:
+//   Today block:   div.weekly_menu div.<dayclass>   e.g. div.streda
+//   Denné menu:    div.druh_menu.menu_klasik
+//   Vegánske menu: div.druh_menu.menu_vegan
+//   Stála ponuka:  div.druh_menu.stala_ponuka
+
+function parseFoodgardenPressburg(doc) {
     const sections = new Map([
-        ['🍽️ Denné menu', []],
+        ['🍽️ Denné menu',   []],
         ['🌱 Vegánske menu', []],
-        ['📋 Stála ponuka', []],
+        ['📋 Stála ponuka',  []],
     ]);
 
-    // Strategy 1: look for tab/section matching today's day name
-    let target = null;
+    const dayClass  = DAY_CLASS_MAP[todayName()] || todayName().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    let todayBlock  = doc.querySelector(`div.weekly_menu .${dayClass}`) || doc.querySelector(`.${dayClass}`);
 
-    // Try headings
-    for (const h of doc.querySelectorAll('h2,h3,h4,[class*="tab-title"],[class*="day"]')) {
-        if (h.textContent.trim().toUpperCase().includes(day) ||
-            h.textContent.trim().toUpperCase().includes('DNES')) {
-            target = h.closest('section, article, [class*="tab"], [class*="panel"]') ||
-                     h.parentElement?.parentElement || h.parentElement;
-            break;
+    // Fallback: match day heading text
+    if (!todayBlock) {
+        for (const h of doc.querySelectorAll('h2')) {
+            if (h.textContent.trim().toUpperCase() === todayName().toUpperCase()) {
+                todayBlock = h.closest('.col-lg-1212, .grid-item') || h.parentElement?.parentElement;
+                break;
+            }
         }
     }
 
-    // Strategy 2: search entire body if no target
-    const scope = target || doc.body;
+    const scope = todayBlock || doc.querySelector('.dnes_varime') || doc.body;
 
-    let cur = '🍽️ Denné menu';
-    let inToday = !target; // if no scoped target, scan all and detect day
+    sections.get('🍽️ Denné menu').push(  ...extractRecipeItems(scope.querySelector('div.druh_menu.menu_klasik')));
+    sections.get('🌱 Vegánske menu').push(...extractRecipeItems(scope.querySelector('div.druh_menu.menu_vegan')));
+    sections.get('📋 Stála ponuka').push( ...extractRecipeItems(scope.querySelector('div.druh_menu.stala_ponuka')));
 
-    const allEls = scope.querySelectorAll('h2,h3,h4,h5,p,li,[class*="menu-item"],[class*="dish"],[class*="food"]');
+    return sections;
+}
 
-    allEls.forEach(el => {
-        const raw = el.textContent.trim();
-        if (!raw || raw.length < 2) return;
-        const up = raw.toUpperCase();
+// ── Foodgarden APOLLO parser ──────────────────────────────────────────────
+// Structure (tab-based, no per-day blocks — always shows today):
+//   Denné menu:  div#tab-02  (tab-pane)
+//   Stála ponuka: div#tab-05  (tab-pane)
+//   No separate vegánske tab — vegan items mixed into denné menu
 
-        // Day boundary detection (when no target found)
-        if (!target) {
-            const isDay = /^(PONDELOK|UTOROK|STREDA|ŠTVRTOK|PIATOK|SOBOTA|NEDEĽA)/.test(up);
-            if (isDay) {
-                inToday = up.startsWith(day);
-                return;
-            }
-        }
-        if (!inToday && !target) return;
+function parseFoodgardenApollo(doc) {
+    const sections = new Map([
+        ['🍽️ Denné menu',  []],
+        ['📋 Stála ponuka', []],
+    ]);
 
-        // Section detection
-        if (up.includes('VEGÁN') || up.includes('VEGAN')) { cur = '🌱 Vegánske menu'; return; }
-        if (up.includes('STÁLA PONUKA') || up.includes('STALA PONUKA')) { cur = '📋 Stála ponuka'; return; }
-        if (up.includes('DENNÉ MENU') || up.includes('DENNE MENU')) { cur = '🍽️ Denné menu'; return; }
-
-        // Price detection: look for sibling/nearby h5 price or inline price
-        const parent = el.closest('[class*="item"],[class*="dish"],[class*="menu"]') || el.parentElement;
-        const priceEl = parent?.querySelector('h5,[class*="price"]');
-
-        let name = '', price = '';
-
-        if (priceEl && priceEl !== el) {
-            name = raw.split(/Objem:|Hmotnosť:|Alergén/)[0].trim();
-            price = priceEl.textContent.trim();
-        } else {
-            // inline: "Slepačí vývar 1.20 €"
-            const m = raw.match(/^(.+?)\s{2,}(\d+[.,]\d+\s*€)/);
-            if (m) { name = m[1].trim(); price = m[2].trim(); }
-        }
-
-        if (name && name.length > 3 && price &&
-            !name.toUpperCase().match(/^(VEGÁN|STÁLA|DENNÉ|ALERGÉN|OBJEM|HMOT)/) &&
-            price.match(/\d/)) {
-            sections.get(cur)?.push({ name, price });
-        }
-    });
+    sections.get('🍽️ Denné menu').push( ...extractRecipeItems(doc.querySelector('#tab-02')));
+    sections.get('📋 Stála ponuka').push(...extractRecipeItems(doc.querySelector('#tab-05')));
 
     return sections;
 }
@@ -529,7 +550,7 @@ async function fetchFoodgardenPressburg() {
     try {
         const html = await fetchHTML('https://pressburg.foodgarden.sk/denne-menu-foodgarden-pressburg/');
         const doc = new DOMParser().parseFromString(html, 'text/html');
-        const sections = parseFoodgarden(doc);
+        const sections = parseFoodgardenPressburg(doc);
         el.innerHTML = dateHeader() + renderItems(sections);
     } catch(err) {
         console.error('FG Pressburg:', err);
@@ -541,9 +562,9 @@ async function fetchFoodgardenApollo() {
     const el = document.getElementById('fa-content');
     el.innerHTML = '<div class="spinner-wrap"><div class="spinner"></div><div class="spinner-label">Načítavam...</div></div>';
     try {
-        const html = await fetchHTML('https://apollo.foodgarden.sk/');
+        const html = await fetchHTML('https://apollo.foodgarden.sk/denne-menu-apollo/');
         const doc = new DOMParser().parseFromString(html, 'text/html');
-        const sections = parseFoodgarden(doc);
+        const sections = parseFoodgardenApollo(doc);
         el.innerHTML = dateHeader() + renderItems(sections);
     } catch(err) {
         console.error('FG Apollo:', err);
