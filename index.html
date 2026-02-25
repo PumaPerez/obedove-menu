@@ -400,25 +400,35 @@ function parseLunchBreak(doc) {
         ['⭐ Špeciál menu',    []],
     ]);
 
-    // Find today's open toggle (et_pb_toggle_open) or first toggle with today's date
+    // Find today's toggle by matching date in title (dd.mm.yyyy)
+    // Falls back to et_pb_toggle_open, then first toggle
     let toggleContent = null;
     const toggles = doc.querySelectorAll('.et_pb_toggle');
     const todayStr = todayDate(); // dd.mm.yyyy
 
     for (const t of toggles) {
         const title = t.querySelector('.et_pb_toggle_title')?.textContent || '';
-        if (title.includes(todayStr) || t.classList.contains('et_pb_toggle_open')) {
+        if (title.includes(todayStr)) {
             toggleContent = t.querySelector('.et_pb_toggle_content');
             if (toggleContent) break;
         }
     }
-    // fallback: first toggle with content
+    // fallback: open toggle
+    if (!toggleContent) {
+        for (const t of toggles) {
+            if (t.classList.contains('et_pb_toggle_open')) {
+                toggleContent = t.querySelector('.et_pb_toggle_content');
+                if (toggleContent) break;
+            }
+        }
+    }
+    // last resort: first toggle
     if (!toggleContent) toggleContent = doc.querySelector('.et_pb_toggle_content');
     if (!toggleContent) return sections;
 
     let cur = null;
+    let pendingName = null; // dish name when price arrives in the NEXT paragraph
 
-    // Walk paragraph by paragraph
     const paras = toggleContent.querySelectorAll('p');
     paras.forEach(p => {
         const raw = p.innerText || p.textContent;
@@ -426,54 +436,62 @@ function parseLunchBreak(doc) {
         if (!text) return;
         const up = text.toUpperCase();
 
-        // Section headers (bold colored text)
-        if (up.includes('POLIEVKA') && !up.includes('V CENE')) { cur = '🥣 Polievky'; return; }
-        if (up.includes('MÄSOVÉ MENU'))    { cur = '🍖 Mäsové menu'; return; }
-        if (up.includes('BEZMÄSITÉ MENU')) { cur = '🥗 Bezmäsité menu'; return; }
-        // All ŠPECIÁL variants (ŠPECIÁL MENU, ŠPECIÁL ŠALÁT, ŠPECIÁL BOWL...) → one section
-        if (up.startsWith('ŠPECIÁL') || up.startsWith('SPECIAL')) { cur = '⭐ Špeciál menu'; return; }
-        if (up.includes('V CENE MENU'))    { return; } // skip "polievka je zahrnutá..."
+        // Section headers
+        if (up.includes('POLIEVKA') && !up.includes('V CENE')) { cur = '🥣 Polievky'; pendingName = null; return; }
+        if (up.includes('MÄSOVÉ MENU'))    { cur = '🍖 Mäsové menu'; pendingName = null; return; }
+        if (up.includes('BEZMÄSITÉ MENU')) { cur = '🥗 Bezmäsité menu'; pendingName = null; return; }
+        if (up.startsWith('ŠPECIÁL') || up.startsWith('SPECIAL')) { cur = '⭐ Špeciál menu'; pendingName = null; return; }
+        if (up.includes('V CENE MENU'))    { return; }
 
         if (!cur) return;
 
-        // Polievky: "0,3l Zemiaková / Hovädzí vývar (alergény)"
+        // Polievky: "0,3l Názov1 (alerg) / Názov2 (alerg)"
         if (cur === '🥣 Polievky') {
-            // Strip leading volume "0,3l "
             const cleaned = text.replace(/^\d[,.]?\d*l\s*/i, '');
-            // Split by " / " for multiple soups
-            const soups = cleaned.split(/\s*\/\s*/);
-            soups.forEach(s => {
-                // Remove allergen info in parens at end
-                const name = s.replace(/\s*\(\d[,\d]*\)\s*$/, '').trim();
+            cleaned.split(/\s*\/\s*/).forEach(s => {
+                const name = s.replace(/\s*\(\d[\d,]*\)\s*$/, '').trim();
                 if (name.length > 3) sections.get('🥣 Polievky').push({ name, price: 'v cene menu' });
             });
             return;
         }
 
-        // Menu items: paragraph may contain "A, description\n9,50 €" (two lines)
-        // innerText splits lines with \n
+        // Case 1: standalone price paragraph "9,90 €" — matches pending name
+        const onlyPrice = text.match(/^(\d+[.,]\d+)\s*€$/);
+        if (onlyPrice) {
+            if (pendingName) {
+                sections.get(cur)?.push({ name: pendingName, price: onlyPrice[1].replace(',', '.') + ' €' });
+                pendingName = null;
+            }
+            return;
+        }
+
+        pendingName = null; // reset if non-price paragraph arrives after a pending name
+
+        // Case 2: name + price in same paragraph on two lines ("A, Popis...\n9,50 €")
         const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
         if (lines.length >= 2) {
-            // Last line should be the price
-            const priceLine = lines[lines.length - 1];
-            const priceMatch = priceLine.match(/(\d+[.,]\d+)\s*€/);
+            const lastLine = lines[lines.length - 1];
+            const priceMatch = lastLine.match(/^(\d+[.,]\d+)\s*€$/);
             if (priceMatch) {
                 const price = priceMatch[1].replace(',', '.') + ' €';
-                // Name = all lines except last, joined
-                const nameParts = lines.slice(0, -1).join(' ');
-                // Clean up: remove allergen codes at end like "(1,3,7)"
-                const name = nameParts.replace(/\s*\(\d[\d,]*\)\s*$/, '').trim();
+                const name = lines.slice(0, -1).join(' ').replace(/\s*\(\d[\d,]*\)\s*$/, '').trim();
                 if (name.length > 3) sections.get(cur)?.push({ name, price });
                 return;
             }
         }
-        // Single line with inline price "Niečo 9,50 €"
+
+        // Case 3: inline price "Niečo 9,50 €"
         const inlineMatch = text.match(/^(.+?)\s+(\d+[.,]\d+)\s*€/);
         if (inlineMatch) {
             const name = inlineMatch[1].replace(/\s*\(\d[\d,]*\)\s*$/, '').trim();
             const price = inlineMatch[2].replace(',', '.') + ' €';
             if (name.length > 3) sections.get(cur)?.push({ name, price });
+            return;
         }
+
+        // Case 4: description only, price will come in next paragraph
+        const name = text.replace(/\s*\(\d[\d,]*\)\s*$/, '').trim();
+        if (name.length > 3) pendingName = name;
     });
 
     return sections;
@@ -555,9 +573,8 @@ function parseFoodgardenPressburg(doc) {
 }
 
 // ── Foodgarden APOLLO parser ──────────────────────────────────────────────
-// Structure (tab-based):
-//   Denné menu:   div#tab-02  → recipe_item list directly
-//   Stála ponuka: div#tab-05  → div.druh_menu.stala_ponuka → recipe_item list
+// Structure: same as Pressburg — div.druh_menu.menu_klasik, div.druh_menu.stala_ponuka
+// (The nav tabs are just UI, content is always rendered in DOM)
 
 function parseFoodgardenApollo(doc) {
     const sections = new Map([
@@ -565,13 +582,15 @@ function parseFoodgardenApollo(doc) {
         ['📋 Stála ponuka', []],
     ]);
 
-    const tab02 = doc.querySelector('#tab-02');
-    const tab05 = doc.querySelector('#tab-05');
+    // Find today's day block same way as Pressburg
+    const dayClass = DAY_CLASS_MAP[todayName()] || todayName().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    let todayBlock = doc.querySelector(`div.weekly_menu .${dayClass}`) ||
+                     doc.querySelector(`.${dayClass}`) ||
+                     doc.querySelector('.dnes_varime') ||
+                     doc.body;
 
-    sections.get('🍽️ Denné menu').push(...extractRecipeItems(tab02));
-    // stála ponuka is inside div.stala_ponuka within tab-05
-    const stalaBlock = tab05?.querySelector('div.stala_ponuka, div.druh_menu.stala_ponuka') || tab05;
-    sections.get('📋 Stála ponuka').push(...extractRecipeItems(stalaBlock));
+    sections.get('🍽️ Denné menu').push( ...extractRecipeItems(todayBlock.querySelector('div.druh_menu.menu_klasik') || todayBlock));
+    sections.get('📋 Stála ponuka').push(...extractRecipeItems(todayBlock.querySelector('div.druh_menu.stala_ponuka')));
 
     return sections;
 }
