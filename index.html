@@ -359,6 +359,7 @@ function dateHeader() {
 const SECTION_CLASS = {
     '🌱 Vegánske menu': 'vegan',
     '📋 Stála ponuka':  'stala',
+    '⭐ Špeciál menu':  'stala',
 };
 
 function renderItems(sections) {
@@ -387,6 +388,96 @@ function errorHTML(retryFn) {
 }
 
 // ── Lunch Break ──────────────────────────────────────────────────────────
+// Structure: Divi builder, today's menu in .et_pb_toggle_open .et_pb_toggle_content
+// Sections separated by <hr>, headings in <strong> colored spans
+// Items: letter prefix "A, description\nprice €" or just "description\nprice €"
+
+function parseLunchBreak(doc) {
+    const sections = new Map([
+        ['🥣 Polievky',        []],
+        ['🍖 Mäsové menu',     []],
+        ['🥗 Bezmäsité menu',  []],
+        ['⭐ Špeciál menu',    []],
+    ]);
+
+    // Find today's open toggle (et_pb_toggle_open) or first toggle with today's date
+    let toggleContent = null;
+    const toggles = doc.querySelectorAll('.et_pb_toggle');
+    const todayStr = todayDate(); // dd.mm.yyyy
+
+    for (const t of toggles) {
+        const title = t.querySelector('.et_pb_toggle_title')?.textContent || '';
+        if (title.includes(todayStr) || t.classList.contains('et_pb_toggle_open')) {
+            toggleContent = t.querySelector('.et_pb_toggle_content');
+            if (toggleContent) break;
+        }
+    }
+    // fallback: first toggle with content
+    if (!toggleContent) toggleContent = doc.querySelector('.et_pb_toggle_content');
+    if (!toggleContent) return sections;
+
+    let cur = null;
+
+    // Walk paragraph by paragraph
+    const paras = toggleContent.querySelectorAll('p');
+    paras.forEach(p => {
+        const raw = p.innerText || p.textContent;
+        const text = raw.trim();
+        if (!text) return;
+        const up = text.toUpperCase();
+
+        // Section headers (bold colored text)
+        if (up.includes('POLIEVKA') && !up.includes('V CENE')) { cur = '🥣 Polievky'; return; }
+        if (up.includes('MÄSOVÉ MENU'))    { cur = '🍖 Mäsové menu'; return; }
+        if (up.includes('BEZMÄSITÉ MENU')) { cur = '🥗 Bezmäsité menu'; return; }
+        // All ŠPECIÁL variants (ŠPECIÁL MENU, ŠPECIÁL ŠALÁT, ŠPECIÁL BOWL...) → one section
+        if (up.startsWith('ŠPECIÁL') || up.startsWith('SPECIAL')) { cur = '⭐ Špeciál menu'; return; }
+        if (up.includes('V CENE MENU'))    { return; } // skip "polievka je zahrnutá..."
+
+        if (!cur) return;
+
+        // Polievky: "0,3l Zemiaková / Hovädzí vývar (alergény)"
+        if (cur === '🥣 Polievky') {
+            // Strip leading volume "0,3l "
+            const cleaned = text.replace(/^\d[,.]?\d*l\s*/i, '');
+            // Split by " / " for multiple soups
+            const soups = cleaned.split(/\s*\/\s*/);
+            soups.forEach(s => {
+                // Remove allergen info in parens at end
+                const name = s.replace(/\s*\(\d[,\d]*\)\s*$/, '').trim();
+                if (name.length > 3) sections.get('🥣 Polievky').push({ name, price: 'v cene menu' });
+            });
+            return;
+        }
+
+        // Menu items: paragraph may contain "A, description\n9,50 €" (two lines)
+        // innerText splits lines with \n
+        const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+        if (lines.length >= 2) {
+            // Last line should be the price
+            const priceLine = lines[lines.length - 1];
+            const priceMatch = priceLine.match(/(\d+[.,]\d+)\s*€/);
+            if (priceMatch) {
+                const price = priceMatch[1].replace(',', '.') + ' €';
+                // Name = all lines except last, joined
+                const nameParts = lines.slice(0, -1).join(' ');
+                // Clean up: remove allergen codes at end like "(1,3,7)"
+                const name = nameParts.replace(/\s*\(\d[\d,]*\)\s*$/, '').trim();
+                if (name.length > 3) sections.get(cur)?.push({ name, price });
+                return;
+            }
+        }
+        // Single line with inline price "Niečo 9,50 €"
+        const inlineMatch = text.match(/^(.+?)\s+(\d+[.,]\d+)\s*€/);
+        if (inlineMatch) {
+            const name = inlineMatch[1].replace(/\s*\(\d[\d,]*\)\s*$/, '').trim();
+            const price = inlineMatch[2].replace(',', '.') + ' €';
+            if (name.length > 3) sections.get(cur)?.push({ name, price });
+        }
+    });
+
+    return sections;
+}
 
 async function fetchLunchBreak() {
     const el = document.getElementById('lb-content');
@@ -394,70 +485,7 @@ async function fetchLunchBreak() {
     try {
         const html = await fetchHTML('https://www.lunch-break.sk/menu-apollo/');
         const doc = new DOMParser().parseFromString(html, 'text/html');
-
-        const sections = new Map([
-            ['🥣 Polievky', []],
-            ['🍖 Mäsové menu', []],
-            ['🥗 Bezmäsité menu', []],
-            ['⭐ Špeciál menu', []],
-        ]);
-
-        let cur = null;
-
-        // Try structured table/list approach first
-        const rows = doc.querySelectorAll('table tr, .menu-item, .menu_item, [class*="menu"] li');
-        if (rows.length > 0) {
-            rows.forEach(row => {
-                const cells = row.querySelectorAll('td, th');
-                if (cells.length >= 2) {
-                    const name = cells[0].textContent.trim();
-                    const priceCell = cells[cells.length - 1].textContent.trim();
-                    const priceMatch = priceCell.match(/\d+[.,]\d+\s*€/);
-                    if (name && priceMatch && name.length > 3) {
-                        (sections.get('🍖 Mäsové menu') || []).push({ name, price: priceMatch[0] });
-                    }
-                }
-            });
-        }
-
-        // Fallback: paragraph/text parsing
-        if (![...sections.values()].some(a => a.length)) {
-            const els = doc.querySelectorAll('p, strong, h3, h4, h5, li, div');
-            els.forEach(e => {
-                const raw = e.textContent.trim();
-                if (!raw || raw.length < 3) return;
-                const up = raw.toUpperCase();
-
-                if (up.match(/^POLIEVK/) && !up.includes('V CENE')) { cur = '🥣 Polievky'; return; }
-                if (up.match(/MÄSOVÉ MENU|MÄSITÉ MENU/)) { cur = '🍖 Mäsové menu'; return; }
-                if (up.match(/BEZMÄSITÉ MENU|BEZMASÉ/)) { cur = '🥗 Bezmäsité menu'; return; }
-                if (up.match(/ŠPECIÁL|SPECIAL MENU/)) { cur = '⭐ Špeciál menu'; return; }
-
-                // Soup names: "Polievka: Slepačí vývar / Paradajková"
-                if (cur === '🥣 Polievky' && raw.includes('/')) {
-                    raw.split('/').map(s => s.replace(/polievka/gi,'').replace(/:/,'').trim()).filter(s => s.length > 3).forEach(s => {
-                        sections.get('🥣 Polievky').push({ name: s, price: 'v cene menu' });
-                    });
-                    cur = null;
-                    return;
-                }
-
-                if (!cur) return;
-
-                // "A, Kurací rezeň ... 6.50 €"
-                const m1 = raw.match(/^([A-Z]),?\s+(.+?)\s+(\d+[.,]\d+)\s*€/);
-                if (m1) {
-                    sections.get(cur)?.push({ name: `${m1[1]}. ${m1[2]}`, price: `${m1[3].replace(',','.')} €` });
-                    return;
-                }
-                // generic price in line
-                const m2 = raw.match(/^(.+?)\s{2,}(\d+[.,]\d+)\s*€/);
-                if (m2 && m2[1].length > 3 && !m2[1].toUpperCase().match(/MENU|POLIEVKA/)) {
-                    sections.get(cur)?.push({ name: m2[1].trim(), price: `${m2[2].replace(',','.')} €` });
-                }
-            });
-        }
-
+        const sections = parseLunchBreak(doc);
         el.innerHTML = dateHeader() + renderItems(sections);
     } catch(err) {
         console.error('LunchBreak:', err);
@@ -527,10 +555,9 @@ function parseFoodgardenPressburg(doc) {
 }
 
 // ── Foodgarden APOLLO parser ──────────────────────────────────────────────
-// Structure (tab-based, no per-day blocks — always shows today):
-//   Denné menu:  div#tab-02  (tab-pane)
-//   Stála ponuka: div#tab-05  (tab-pane)
-//   No separate vegánske tab — vegan items mixed into denné menu
+// Structure (tab-based):
+//   Denné menu:   div#tab-02  → recipe_item list directly
+//   Stála ponuka: div#tab-05  → div.druh_menu.stala_ponuka → recipe_item list
 
 function parseFoodgardenApollo(doc) {
     const sections = new Map([
@@ -538,8 +565,13 @@ function parseFoodgardenApollo(doc) {
         ['📋 Stála ponuka', []],
     ]);
 
-    sections.get('🍽️ Denné menu').push( ...extractRecipeItems(doc.querySelector('#tab-02')));
-    sections.get('📋 Stála ponuka').push(...extractRecipeItems(doc.querySelector('#tab-05')));
+    const tab02 = doc.querySelector('#tab-02');
+    const tab05 = doc.querySelector('#tab-05');
+
+    sections.get('🍽️ Denné menu').push(...extractRecipeItems(tab02));
+    // stála ponuka is inside div.stala_ponuka within tab-05
+    const stalaBlock = tab05?.querySelector('div.stala_ponuka, div.druh_menu.stala_ponuka') || tab05;
+    sections.get('📋 Stála ponuka').push(...extractRecipeItems(stalaBlock));
 
     return sections;
 }
