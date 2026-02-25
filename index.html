@@ -330,14 +330,13 @@ document.getElementById('todayBadge').textContent = `📅 ${fullDate()}`;
 
 // CORS proxies — tried in order, first success wins
 const PROXIES = [
-    url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
     url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
     url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
     url => `https://thingproxy.freeboard.io/fetch/${url}`,
-    url => `https://jsonp.afeld.me/?url=${encodeURIComponent(url)}`,
 ];
 
-async function fetchHTML(url, timeoutMs = 8000) {
+async function fetchHTML(url, timeoutMs = 5000) {
     for (const makeProxy of PROXIES) {
         try {
             const ctrl = new AbortController();
