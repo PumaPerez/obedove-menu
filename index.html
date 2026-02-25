@@ -8,15 +8,16 @@
     <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --navy: #00274d;
-            --navy-mid: #003d75;
-            --accent: #e8a020;
-            --light-bg: #f4f7fb;
+            --navy: #1e3448;
+            --navy-mid: #2d4a63;
+            --accent: #00b5cc;
+            --accent-dark: #0090a8;
+            --light-bg: #eef4f7;
             --card-bg: #ffffff;
-            --text: #1a2535;
-            --muted: #6b7e96;
-            --border: #dce4ef;
-            --success: #2e7d32;
+            --text: #1a2e3d;
+            --muted: #5a7a8e;
+            --border: #ccdde6;
+            --success: #00b5cc;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -48,8 +49,8 @@
             content: '';
             position: absolute;
             inset: 0;
-            background: radial-gradient(ellipse at 70% 50%, rgba(232,160,32,0.12) 0%, transparent 60%),
-                        radial-gradient(ellipse at 20% 80%, rgba(0,100,200,0.15) 0%, transparent 50%);
+            background: radial-gradient(ellipse at 70% 50%, rgba(0,181,204,0.18) 0%, transparent 60%),
+                        radial-gradient(ellipse at 15% 80%, rgba(41,171,226,0.14) 0%, transparent 50%);
         }
         .header > * { position: relative; z-index: 1; }
 
@@ -88,7 +89,7 @@
             align-items: center;
             gap: 8px;
             background: var(--accent);
-            color: var(--navy);
+            color: #fff;
             font-weight: 600;
             font-size: 0.95em;
             padding: 8px 20px;
@@ -192,8 +193,8 @@
             border-left-color: #2e7d32;
         }
         .section-title.stala {
-            color: #5a3e00;
-            background: #fff8e1;
+            color: #005f6e;
+            background: #e6f7fa;
             border-left-color: var(--accent);
         }
 
