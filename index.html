@@ -256,6 +256,33 @@
         }
         .no-menu { text-align: center; color: var(--muted); padding: 30px 0; font-size: 0.9em; }
 
+        .elfuego-link-box {
+            text-align: center;
+            padding: 32px 16px;
+        }
+        .elfuego-icon { font-size: 2.5em; margin-bottom: 12px; }
+        .elfuego-msg {
+            color: var(--muted);
+            font-size: 0.9em;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        .elfuego-btn {
+            display: inline-block;
+            background: var(--navy);
+            color: #fff;
+            text-decoration: none;
+            padding: 11px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.95em;
+            transition: all 0.2s;
+        }
+        .elfuego-btn:hover {
+            background: var(--accent);
+            transform: translateY(-2px);
+        }
+
         .footer {
             text-align: center;
             margin-top: 36px;
@@ -306,6 +333,24 @@
                 <a href="https://apollo.foodgarden.sk/" target="_blank" class="visit-btn">Otvoriť →</a>
             </div>
             <div class="card-body" id="fa-content"><div class="spinner-wrap"><div class="spinner"></div><div class="spinner-label">Načítavam...</div></div></div>
+        </div>
+
+        <!-- Piknik Plynárenská -->
+        <div class="card">
+            <div class="card-head">
+                <div class="rest-name">🧺 Piknik Plynárenská</div>
+                <a href="https://bencikculinary.sk/picknik/" target="_blank" class="visit-btn">Otvoriť →</a>
+            </div>
+            <div class="card-body" id="piknik-content"><div class="spinner-wrap"><div class="spinner"></div><div class="spinner-label">Načítavam...</div></div></div>
+        </div>
+
+        <!-- El Fuego -->
+        <div class="card">
+            <div class="card-head">
+                <div class="rest-name">🔥 El Fuego</div>
+                <a href="https://el-fuego.sk/menu/section:obedove-menu/pondelok-431" target="_blank" class="visit-btn">Otvoriť →</a>
+            </div>
+            <div class="card-body" id="elfuego-content"><div class="spinner-wrap"><div class="spinner"></div><div class="spinner-label">Načítavam...</div></div></div>
         </div>
     </div>
 
@@ -623,6 +668,102 @@ async function fetchFoodgardenApollo() {
     }
 }
 
+
+// ── Piknik Plynárenská ────────────────────────────────────────────────────
+// Structure: div.day-container with div.day-date (day name) + div.day-menu
+//   div.day-menu-option > b (label e.g. "Polievka:") + div.day-menu-option-meal (text + <strong>price</strong>)
+// Only first .day-container is shown by default (today), rest in #toggle-daily-menu
+
+function parsePiknik(doc) {
+    const sections = new Map([
+        ['🥣 Polievka',   []],
+        ['🍽️ Menu',       []],
+        ['⭐ Špeciál',    []],
+    ]);
+
+    const day = todayName();
+
+    // Find today's day-container by matching day name text
+    let todayContainer = null;
+    for (const dc of doc.querySelectorAll('div.day-container')) {
+        const dateDiv = dc.querySelector('.day-date');
+        if (dateDiv && dateDiv.textContent.trim().toUpperCase().startsWith(day.toUpperCase())) {
+            todayContainer = dc;
+            break;
+        }
+    }
+    if (!todayContainer) return sections;
+
+    for (const option of todayContainer.querySelectorAll('div.day-menu-option')) {
+        const label = option.querySelector('b')?.textContent.trim().replace(':', '').toLowerCase() || '';
+        const mealDiv = option.querySelector('div.day-menu-option-meal');
+        if (!mealDiv) continue;
+
+        // Price is in <strong> tag
+        const priceEl = mealDiv.querySelector('strong');
+        const price = priceEl ? priceEl.textContent.trim().replace(/\s+/g, ' ') : 'v cene menu';
+
+        // Name is text without the <strong> part
+        const name = mealDiv.childNodes[0]?.textContent.trim().replace(/\s*\(\d[\d,]*\)\s*$/, '').trim() || '';
+        if (!name) continue;
+
+        if (label.includes('polievka')) {
+            sections.get('🥣 Polievka').push({ name, price });
+        } else if (label.includes('špeciál') || label.includes('special')) {
+            sections.get('⭐ Špeciál').push({ name, price });
+        } else {
+            sections.get('🍽️ Menu').push({ name, price });
+        }
+    }
+
+    return sections;
+}
+
+async function fetchPiknik() {
+    const el = document.getElementById('piknik-content');
+    el.innerHTML = '<div class="spinner-wrap"><div class="spinner"></div><div class="spinner-label">Načítavam...</div></div>';
+    try {
+        const html = await fetchHTML('https://bencikculinary.sk/picknik/');
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const sections = parsePiknik(doc);
+        el.innerHTML = dateHeader() + renderItems(sections);
+    } catch(err) {
+        console.error('Piknik:', err);
+        el.innerHTML = errorHTML('fetchPiknik');
+    }
+}
+
+// ── El Fuego ──────────────────────────────────────────────────────────────
+// ChoiceQR platform — content is JS-rendered, direct scraping not possible.
+// Show message with link to today's day page.
+
+const EL_FUEGO_DAY_URLS = {
+    'Pondelok': 'https://el-fuego.sk/menu/section:obedove-menu/pondelok-431',
+    'Utorok':   'https://el-fuego.sk/menu/section:obedove-menu/utorok',
+    'Streda':   'https://el-fuego.sk/menu/section:obedove-menu/streda',
+    'Štvrtok':  'https://el-fuego.sk/menu/section:obedove-menu/stvrtok-360',
+    'Piatok':   'https://el-fuego.sk/menu/section:obedove-menu/piatok',
+};
+
+async function fetchElFuego() {
+    const el = document.getElementById('elfuego-content');
+    const day = todayName();
+    const url = EL_FUEGO_DAY_URLS[day];
+
+    if (!url) {
+        el.innerHTML = dateHeader() + '<div class="no-menu">Menu nie je dostupné cez víkend.</div>';
+        return;
+    }
+
+    // ChoiceQR platform — not scrapable, show direct link
+    el.innerHTML = dateHeader() + `
+        <div class="elfuego-link-box">
+            <div class="elfuego-icon">🔥</div>
+            <p class="elfuego-msg">Menu El Fuego sa nedá načítať automaticky.<br>Kliknite pre zobrazenie dnešnej ponuky.</p>
+            <a href="${url}" target="_blank" class="elfuego-btn">Zobraziť menu na ${day} →</a>
+        </div>`;
+}
+
 // ── Boot ─────────────────────────────────────────────────────────────────
 
 async function fetchAllMenus() {
@@ -634,6 +775,8 @@ async function fetchAllMenus() {
         fetchLunchBreak(),
         fetchFoodgardenPressburg(),
         fetchFoodgardenApollo(),
+        fetchPiknik(),
+        fetchElFuego(),
     ]);
 
     btn.disabled = false;
