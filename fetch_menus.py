@@ -19,7 +19,7 @@ now  = datetime.now(BRAT)
 
 SK_DAYS_PY = ["Pondelok","Utorok","Streda","Štvrtok","Piatok","Sobota","Nedeľa"]
 TODAY_NAME  = SK_DAYS_PY[now.weekday()]
-TODAY_DATE  = now.strftime("%d.%m.%Y")  # dd.mm.yyyy — rovnaký formát ako JS
+TODAY_DATE  = now.strftime("%d.%m.%Y")
 
 HEADERS = {
     "User-Agent": (
@@ -51,7 +51,6 @@ def fetch(url: str) -> str | None:
 
 
 def sections_to_list(sections: dict) -> list:
-    """Konvertuje OrderedDict sekcií na serializovateľný zoznam."""
     result = []
     for title, items in sections.items():
         if items:
@@ -70,7 +69,6 @@ def parse_lunch_break(html: str) -> list:
         "⭐ Špeciál menu":   [],
     }
 
-    # Nájdi dnešný toggle podľa dátumu v názve
     toggle_content = None
     for t in doc.select(".et_pb_toggle"):
         title_el = t.select_one(".et_pb_toggle_title")
@@ -79,7 +77,6 @@ def parse_lunch_break(html: str) -> list:
             if toggle_content:
                 break
 
-    # záloha: otvorený toggle
     if not toggle_content:
         for t in doc.select(".et_pb_toggle"):
             if "et_pb_toggle_open" in (t.get("class") or []):
@@ -87,7 +84,6 @@ def parse_lunch_break(html: str) -> list:
                 if toggle_content:
                     break
 
-    # posledná záloha: prvý toggle
     if not toggle_content:
         toggle_content = doc.select_one(".et_pb_toggle_content")
 
@@ -111,14 +107,22 @@ def parse_lunch_break(html: str) -> list:
             cur = "🥗 Bezmäsité menu"; pending_name = None; continue
         if up.startswith("ŠPECIÁL") or up.startswith("SPECIAL"):
             cur = "⭐ Špeciál menu"; pending_name = None; continue
+        if "SLADKÉ MENU" in up or "SLADKE MENU" in up:
+            cur = "⭐ Špeciál menu"; pending_name = None; continue
         if "V CENE MENU" in up:
             continue
 
         if not cur:
             continue
 
-        # Polievky: "0,3l Názov / Názov2"
+        # Polievky
         if cur == "🥣 Polievky":
+            # Preskočiť ceny a nerozpoznané CAPS hlavičky
+            if re.match(r"^\d", text) and "€" in text:
+                continue
+            stripped = re.sub(r"\s+", "", text)
+            if stripped.isupper() and len(text) < 30:
+                continue
             cleaned = re.sub(r"^\d[,.]?\d*l\s*", "", text, flags=re.IGNORECASE)
             for s in cleaned.split("/"):
                 name = re.sub(r"\s*\(\d[\d,]*\)\s*$", "", s).strip()
@@ -168,7 +172,7 @@ def parse_lunch_break(html: str) -> list:
     return sections_to_list(sections)
 
 
-# ─── Foodgarden (spoločná logika) ─────────────────────────────────────────────
+# ─── Foodgarden ───────────────────────────────────────────────────────────────
 
 def extract_recipe_items(container: Tag | None) -> list:
     if not container:
@@ -196,8 +200,8 @@ def parse_foodgarden(html: str, has_vegan: bool = True) -> list:
         sections["🍽️ Denné menu"]   = []
         sections["📋 Stála ponuka"]  = []
 
-    day_cls  = DAY_CLASS_MAP.get(TODAY_NAME, TODAY_NAME.lower())
-    scope    = (
+    day_cls = DAY_CLASS_MAP.get(TODAY_NAME, TODAY_NAME.lower())
+    scope   = (
         doc.select_one(f"div.weekly_menu .{day_cls}") or
         doc.select_one(f".{day_cls}") or
         doc.select_one(".dnes_varime") or
@@ -218,7 +222,7 @@ def parse_foodgarden(html: str, has_vegan: bool = True) -> list:
     return sections_to_list(sections)
 
 
-# ─── Piknik Plynárenská ───────────────────────────────────────────────────────
+# ─── Piknik ───────────────────────────────────────────────────────────────────
 
 def parse_piknik(html: str) -> list:
     doc = BeautifulSoup(html, "html.parser")
@@ -239,7 +243,7 @@ def parse_piknik(html: str) -> list:
         return sections_to_list(sections)
 
     for option in today_container.select("div.day-menu-option"):
-        label   = (option.select_one("b") or BeautifulSoup("", "html.parser")).get_text().strip().rstrip(":").lower()
+        label    = (option.select_one("b") or BeautifulSoup("", "html.parser")).get_text().strip().rstrip(":").lower()
         meal_div = option.select_one("div.day-menu-option-meal")
         if not meal_div:
             continue
@@ -247,7 +251,6 @@ def parse_piknik(html: str) -> list:
         price_el = meal_div.select_one("strong")
         price    = price_el.get_text().strip() if price_el else "v cene menu"
 
-        # Názov = prvý textový uzol
         name = ""
         for node in meal_div.children:
             if isinstance(node, str):
