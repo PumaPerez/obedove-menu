@@ -374,15 +374,35 @@ function fullDate() { return `${todayName()} ${todayDate()}`; }
 
 document.getElementById('todayBadge').textContent = `📅 ${fullDate()}`;
 
-// CORS proxies — tried in order, first success wins
+// ── JSON cache (generovaný GitHub Actions každý deň ráno) ────────────────────
+// Stránka ho servíruje zo svojej vlastnej domény → žiadne CORS.
+async function loadCachedMenus() {
+    try {
+        const res = await fetch(`menus.json?t=${Date.now()}`);
+        if (!res.ok) return null;
+        const data = await res.json();
+        if (data.date && data.date === todayDate()) return data;
+        return null; // zastaralé — spustíme live scraping
+    } catch { return null; }
+}
+
+function renderCached(el, restaurant) {
+    if (!restaurant) { el.innerHTML = errorHTML(null); return; }
+    if (restaurant.error) { el.innerHTML = errorHTML(null); return; }
+    const sections = (restaurant.sections || []).map(s => [s.title, s.items]);
+    el.innerHTML = dateHeader() + renderItems(new Map(sections));
+}
+
+// ── CORS proxies — záloha keď JSON cache nie je k dispozícii ─────────────────
+// corsproxy.io zmenil API (teraz vyžaduje platený kľúč) → odstránený
 const PROXIES = [
-    url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
     url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
     url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
     url => `https://thingproxy.freeboard.io/fetch/${url}`,
+    url => `https://corsproxy.org/?${encodeURIComponent(url)}`,
 ];
 
-async function fetchHTML(url, timeoutMs = 5000) {
+async function fetchHTML(url, timeoutMs = 10000) {
     for (const makeProxy of PROXIES) {
         try {
             const ctrl = new AbortController();
@@ -392,7 +412,7 @@ async function fetchHTML(url, timeoutMs = 5000) {
             if (!res.ok) continue;
             const text = await res.text();
             if (text && text.length > 200) return text;
-        } catch (_) { /* try next */ }
+        } catch (_) { /* skúsiť ďalší */ }
     }
     throw new Error('Všetky proxy servery zlyhali');
 }
@@ -771,20 +791,37 @@ async function fetchAllMenus() {
     btn.disabled = true;
     btn.textContent = '⏳ Načítavam...';
 
-    await Promise.all([
-        fetchLunchBreak(),
-        fetchFoodgardenPressburg(),
-        fetchFoodgardenApollo(),
-        fetchPiknik(),
-        fetchElFuego(),
-    ]);
+    // 1. Skús JSON cache (rýchle, bez proxy)
+    const cached = await loadCachedMenus();
+
+    if (cached) {
+        renderCached(document.getElementById('lb-content'),     cached.lunchbreak);
+        renderCached(document.getElementById('fp-content'),     cached.fp);
+        renderCached(document.getElementById('fa-content'),     cached.fa);
+        renderCached(document.getElementById('piknik-content'), cached.piknik);
+        await fetchElFuego();
+
+        // Zobraz čas generovania z cache
+        const gen = new Date(cached.generated);
+        document.getElementById('updatedTime').textContent =
+            `Načítané z cache: ${String(gen.getHours()).padStart(2,'0')}:${String(gen.getMinutes()).padStart(2,'0')}`;
+    } else {
+        // 2. Záloha: live scraping cez CORS proxy
+        await Promise.all([
+            fetchLunchBreak(),
+            fetchFoodgardenPressburg(),
+            fetchFoodgardenApollo(),
+            fetchPiknik(),
+            fetchElFuego(),
+        ]);
+
+        const now = new Date();
+        document.getElementById('updatedTime').textContent =
+            `Aktualizované: ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    }
 
     btn.disabled = false;
     btn.textContent = '🔄 Načítaj všetky menu';
-
-    const now = new Date();
-    document.getElementById('updatedTime').textContent =
-        `Aktualizované: ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
 }
 
 fetchAllMenus();
