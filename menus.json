@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-27T20:43:52.123041+02:00",
+  "generated": "2026-08-27T20:49:58.914069+02:00",
   "date": "27.08.2026",
   "dayName": "Štvrtok",
   "lunchbreak": {
@@ -13,22 +13,6 @@
           },
           {
             "name": "Zeleninová s kalerábom a bylinkovými haluškami",
-            "price": "v cene menu"
-          },
-          {
-            "name": "11,9\n0 €",
-            "price": "v cene menu"
-          },
-          {
-            "name": "SLADKÉ MENU",
-            "price": "v cene menu"
-          },
-          {
-            "name": "320g Tvarohové knedlíčky plnené marhuľami, vanilková omáčka s brandy, mango-marakuja mousse",
-            "price": "v cene menu"
-          },
-          {
-            "name": "8,90€",
             "price": "v cene menu"
           }
         ]
@@ -48,6 +32,15 @@
           {
             "name": "C, \n120g/200g Encián zapečený s krustou z pesto rosso a baby špenátu, zemiakovo-batatové pyré, šalátik",
             "price": "9.30 €"
+          }
+        ]
+      },
+      {
+        "title": "⭐ Špeciál menu",
+        "items": [
+          {
+            "name": "320g Tvarohové knedlíčky plnené marhuľami, vanilková omáčka s brandy, mango-marakuja mousse",
+            "price": "8.90 €"
           }
         ]
       }
