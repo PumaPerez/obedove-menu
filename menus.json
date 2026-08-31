@@ -1,5 +1,5 @@
 {
-  "generated": "2026-08-31T16:44:35.557899+02:00",
+  "generated": "2026-08-31T18:05:22.643893+02:00",
   "date": "31.08.2026",
   "dayName": "Pondelok",
   "lunchbreak": {
@@ -8,7 +8,11 @@
         "title": "🥣 Polievky",
         "items": [
           {
-            "name": "Mrkvový krém s pomarančom (-)",
+            "name": "Zemiaková na kyslo s pečenými šampiňónmi",
+            "price": "v cene menu"
+          },
+          {
+            "name": "Hovädzí vývar so zeleninou a rezancami",
             "price": "v cene menu"
           }
         ]
@@ -17,7 +21,7 @@
         "title": "🍖 Mäsové menu",
         "items": [
           {
-            "name": "A\n,\n \n140g/200g Kuracie satay – kuracie špízy v arašidovej marináde s kokosovým mliekom, jazmínová ryža, šalát s limetkovým dressingom, arašidová omáčka",
+            "name": "A\n,\n \n140g/200g Kuracie mini rezníky v panko strúhanke, zemiakové pyré s prepáleným maslom, uhorkový šalát v sladkokyslom náleve",
             "price": "9.50 €"
           }
         ]
@@ -26,7 +30,7 @@
         "title": "🥗 Bezmäsité menu",
         "items": [
           {
-            "name": "C, \n180g/200g Gnocchi s omáčkou z lesných húb, grilované šampiňóny, baby špenát, parmezán",
+            "name": "C, \n180g/200g Grilovaná cuketa plnená krémovým syrom s jarnou cibuľkou, rizoto primavera, šalátik s červenou reďkovkou",
             "price": "9.30 €"
           }
         ]
